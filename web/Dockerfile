@@ -11,9 +11,9 @@ WORKDIR /app
 COPY hooks/ ./hooks/
 COPY web/ ./web/
 
-ENV PORT=8787
-EXPOSE 8787
+ENV PORT=8080
+EXPOSE 8080
 USER bun
 
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s CMD wget -qO- http://127.0.0.1:8787/healthz || exit 1
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s CMD wget -qO- http://127.0.0.1:8080/healthz || exit 1
 CMD ["bun", "web/server.ts"]
