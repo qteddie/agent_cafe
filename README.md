@@ -151,7 +151,7 @@ pane 裡的圖若是空白、破圖或一直閃，把 `motion` 選項關掉（�
    ```
 
 2. 在 Cloudflare 後台（**Networking → Tunnels**）建一條 tunnel，安裝方式選 **Docker**。畫面上會出現一行 `docker run cloudflare/cloudflared:latest tunnel --no-autoupdate run --token eyJ…`，`--token` 後面那一長串就是這條 tunnel 的 token。只要複製 token，那行指令不用執行：`compose.yaml` 會用同一個映像檔跑。
-3. 設定並啟動。tunnel 只靠 `web/.env` 裡的 token 就會連上 Cloudflare：
+3. 設定並啟動。在架網站的那台機器上、專案的 `web/` 資料夾裡執行：`compose.yaml` 在那裡，在專案根目錄下指令會得到 `no configuration file provided`。tunnel 只靠 `web/.env` 裡的 token 就會連上 Cloudflare：
 
    ```bash
    cd ~/Projects/agent-cafe/web
@@ -159,12 +159,16 @@ pane 裡的圖若是空白、破圖或一直閃，把 `motion` 選項關掉（�
    docker compose --profile tunnel up -d --build
    ```
 
+   `web/.env` 不在 git 裡，換一台機器架就要在那台機器上再放一份，`CAFE_INGEST_KEY` 要和 `web.json` 裡的 `key` 是同一把。
+
+   啟動時出現 `Bind for 127.0.0.1:8080 failed: port is already allocated`（或 `address already in use`），是這台機器上已經有別的程式在用 8080。把 `web/.env` 裡的 `CAFE_PORT` 改成沒人用的 port（例如 `8787`）再跑一次。這只換掉這台機器本機看網頁用的 `http://localhost:…`；tunnel 走的是 Docker 內部的網路，下一步的 Service URL 不用跟著改。
+
 4. 回到 Cloudflare 那條 tunnel 的 **Routes → Add route → Published application**：**Hostname** 填你要的子網域（例如 `cafe.你的網域`），**Service URL** 填 `http://cafe:8080`。這一格有兩個地方容易填錯：
    - 是 `cafe`，不是 `localhost`。cloudflared 跑在自己的容器裡，那裡的 `localhost` 是它自己；`cafe` 是 `compose.yaml` 裡伺服器那個容器的名字。
    - 是 `http`，不是 `https`。伺服器本身不處理 https，填 `https://…` 會得到 502。你的網域對外還是 https，那一段由 Cloudflare 負責。
 5. 打開 `https://cafe.你的網域`，輸入 `CAFE_VIEW_KEY`。登入一次可以用 30 天。
 
-不用 Cloudflare 也可以：`docker compose up -d --build`（不加 `--profile tunnel`）只在這台機器的 `127.0.0.1:8080` 開，再用你自己的反向代理（Caddy、nginx）接上 https。伺服器本身不處理 https。
+不用 Cloudflare 也可以：`docker compose up -d --build`（不加 `--profile tunnel`）只在這台機器的 `127.0.0.1:8080`（或你在 `CAFE_PORT` 設的 port）開，再用你自己的反向代理（Caddy、nginx）接上 https。伺服器本身不處理 https。
 
 ### 2. 讓 session 回報
 
