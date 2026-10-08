@@ -28,8 +28,11 @@ services:
       TZ: ${TZ:-Asia/Taipei}
       CAFE_DEBUG: ${CAFE_DEBUG:-}
     ports:
-      # This machine only: the world comes in through the tunnel.
-      - "127.0.0.1:8080:8080"
+      # This machine only: the world comes in through the tunnel, which reaches
+      # the page inside Docker (http://cafe:8080) and not through this port. So
+      # when something here already has 8080, CAFE_PORT in .env moves it, and
+      # the tunnel's service URL stays as it is.
+      - "127.0.0.1:${CAFE_PORT:-8080}:8080"
 
   tunnel:
     image: cloudflare/cloudflared:latest
