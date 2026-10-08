@@ -1,0 +1,40 @@
+{
+  "name": "agent-cafe",
+  "displayName": "Agent Café",
+  "version": "0.2.0",
+  "description": "Seats every agent of your Claude sessions, main loop and subagents alike, in a pixel-art café and shows what each one is doing right now. Open it with /cafe, or on your own web page.",
+  "author": {
+    "name": "Eddie"
+  },
+  "keywords": [
+    "mod",
+    "agents",
+    "subagents",
+    "visualization",
+    "pane"
+  ],
+  "userConfig": {
+    "language": {
+      "type": "string",
+      "title": "Language",
+      "description": "Language of the café's labels.",
+      "options": [
+        "zh-TW",
+        "en"
+      ],
+      "default": "zh-TW"
+    },
+    "share_sessions": {
+      "type": "boolean",
+      "title": "Seat other sessions",
+      "description": "Also seat the agents of your other Claude Code sessions on this machine (each session needs this mod loaded).",
+      "default": true
+    },
+    "motion": {
+      "type": "boolean",
+      "title": "Animation",
+      "description": "Animate the café picture. Turn it off if the picture flickers or does not show on your machine: it is then drawn as a plain still image.",
+      "default": true
+    }
+  }
+}
