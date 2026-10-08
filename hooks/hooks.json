@@ -1,0 +1,219 @@
+{
+  "description": "Agent Café: the hooks module that tracks every agent and draws the café pane, and the reporter that tells the café's web page what each session's agents are doing (only once web.json sets the page up).",
+  "modules": [
+    "./register.tsx"
+  ],
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f \"${CLAUDE_PLUGIN_ROOT}/web.json\" ] && command -v node >/dev/null 2>&1 && NODE_USE_ENV_PROXY=1 node \"${CLAUDE_PLUGIN_ROOT}/scripts/report.mjs\" >/dev/null 2>&1; exit 0",
+            "timeout": 5,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f \"${CLAUDE_PLUGIN_ROOT}/web.json\" ] && command -v node >/dev/null 2>&1 && NODE_USE_ENV_PROXY=1 node \"${CLAUDE_PLUGIN_ROOT}/scripts/report.mjs\" >/dev/null 2>&1; exit 0",
+            "timeout": 5,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f \"${CLAUDE_PLUGIN_ROOT}/web.json\" ] && command -v node >/dev/null 2>&1 && NODE_USE_ENV_PROXY=1 node \"${CLAUDE_PLUGIN_ROOT}/scripts/report.mjs\" >/dev/null 2>&1; exit 0",
+            "timeout": 5,
+            "async": true
+          }
+        ],
+        "matcher": ""
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f \"${CLAUDE_PLUGIN_ROOT}/web.json\" ] && command -v node >/dev/null 2>&1 && NODE_USE_ENV_PROXY=1 node \"${CLAUDE_PLUGIN_ROOT}/scripts/report.mjs\" >/dev/null 2>&1; exit 0",
+            "timeout": 5,
+            "async": true
+          }
+        ],
+        "matcher": ""
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f \"${CLAUDE_PLUGIN_ROOT}/web.json\" ] && command -v node >/dev/null 2>&1 && NODE_USE_ENV_PROXY=1 node \"${CLAUDE_PLUGIN_ROOT}/scripts/report.mjs\" >/dev/null 2>&1; exit 0",
+            "timeout": 5,
+            "async": true
+          }
+        ],
+        "matcher": ""
+      }
+    ],
+    "PostToolBatch": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f \"${CLAUDE_PLUGIN_ROOT}/web.json\" ] && command -v node >/dev/null 2>&1 && NODE_USE_ENV_PROXY=1 node \"${CLAUDE_PLUGIN_ROOT}/scripts/report.mjs\" >/dev/null 2>&1; exit 0",
+            "timeout": 5,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f \"${CLAUDE_PLUGIN_ROOT}/web.json\" ] && command -v node >/dev/null 2>&1 && NODE_USE_ENV_PROXY=1 node \"${CLAUDE_PLUGIN_ROOT}/scripts/report.mjs\" >/dev/null 2>&1; exit 0",
+            "timeout": 5,
+            "async": true
+          }
+        ],
+        "matcher": ""
+      }
+    ],
+    "PermissionDenied": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f \"${CLAUDE_PLUGIN_ROOT}/web.json\" ] && command -v node >/dev/null 2>&1 && NODE_USE_ENV_PROXY=1 node \"${CLAUDE_PLUGIN_ROOT}/scripts/report.mjs\" >/dev/null 2>&1; exit 0",
+            "timeout": 5,
+            "async": true
+          }
+        ],
+        "matcher": ""
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f \"${CLAUDE_PLUGIN_ROOT}/web.json\" ] && command -v node >/dev/null 2>&1 && NODE_USE_ENV_PROXY=1 node \"${CLAUDE_PLUGIN_ROOT}/scripts/report.mjs\" >/dev/null 2>&1; exit 0",
+            "timeout": 5,
+            "async": true
+          }
+        ],
+        "matcher": ""
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f \"${CLAUDE_PLUGIN_ROOT}/web.json\" ] && command -v node >/dev/null 2>&1 && NODE_USE_ENV_PROXY=1 node \"${CLAUDE_PLUGIN_ROOT}/scripts/report.mjs\" >/dev/null 2>&1; exit 0",
+            "timeout": 5,
+            "async": true
+          }
+        ],
+        "matcher": ""
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f \"${CLAUDE_PLUGIN_ROOT}/web.json\" ] && command -v node >/dev/null 2>&1 && NODE_USE_ENV_PROXY=1 node \"${CLAUDE_PLUGIN_ROOT}/scripts/report.mjs\" >/dev/null 2>&1; exit 0",
+            "timeout": 3
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f \"${CLAUDE_PLUGIN_ROOT}/web.json\" ] && command -v node >/dev/null 2>&1 && NODE_USE_ENV_PROXY=1 node \"${CLAUDE_PLUGIN_ROOT}/scripts/report.mjs\" >/dev/null 2>&1; exit 0",
+            "timeout": 3
+          }
+        ]
+      }
+    ],
+    "TeammateIdle": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f \"${CLAUDE_PLUGIN_ROOT}/web.json\" ] && command -v node >/dev/null 2>&1 && NODE_USE_ENV_PROXY=1 node \"${CLAUDE_PLUGIN_ROOT}/scripts/report.mjs\" >/dev/null 2>&1; exit 0",
+            "timeout": 5,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "Elicitation": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f \"${CLAUDE_PLUGIN_ROOT}/web.json\" ] && command -v node >/dev/null 2>&1 && NODE_USE_ENV_PROXY=1 node \"${CLAUDE_PLUGIN_ROOT}/scripts/report.mjs\" >/dev/null 2>&1; exit 0",
+            "timeout": 5,
+            "async": true
+          }
+        ],
+        "matcher": ""
+      }
+    ],
+    "ElicitationResult": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f \"${CLAUDE_PLUGIN_ROOT}/web.json\" ] && command -v node >/dev/null 2>&1 && NODE_USE_ENV_PROXY=1 node \"${CLAUDE_PLUGIN_ROOT}/scripts/report.mjs\" >/dev/null 2>&1; exit 0",
+            "timeout": 5,
+            "async": true
+          }
+        ],
+        "matcher": ""
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f \"${CLAUDE_PLUGIN_ROOT}/web.json\" ] && command -v node >/dev/null 2>&1 && NODE_USE_ENV_PROXY=1 node \"${CLAUDE_PLUGIN_ROOT}/scripts/report.mjs\" >/dev/null 2>&1; exit 0",
+            "timeout": 3
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "idle_prompt",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f \"${CLAUDE_PLUGIN_ROOT}/web.json\" ] && command -v node >/dev/null 2>&1 && NODE_USE_ENV_PROXY=1 node \"${CLAUDE_PLUGIN_ROOT}/scripts/report.mjs\" >/dev/null 2>&1; exit 0",
+            "timeout": 5,
+            "async": true
+          }
+        ]
+      }
+    ]
+  }
+}

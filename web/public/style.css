@@ -1,0 +1,615 @@
+/* Agent Café, the web page: the café's chalkboard wall, the window onto the
+   room, and an order ticket for each session. */
+
+:root {
+  --board: #26312c;
+  --board-deep: #1c2521;
+  --board-line: #3a4741;
+  --chalk: #f1efe6;
+  --chalk-dim: #b4bdb6;
+  --wood: #6b4a32;
+  --wood-light: #8a623f;
+  --paper: #f7f0e1;
+  --paper-edge: #e6dcc6;
+  --ink: #2b2320;
+  --ink-dim: #6f6258;
+
+  /* The scene's own colours: what each seat is doing. On the board, chalk;
+     on a ticket, ink dark enough to read on paper. */
+  --think: #9ec5e8;
+  --work: #8fd18f;
+  --ask: #ffd84d;
+  --idle: #b9bbbf;
+  --fail: #ef7a6f;
+  --think-ink: #2f6aa3;
+  --work-ink: #2c7a37;
+  --ask-ink: #8a6500;
+  --idle-ink: #857f78;
+  --fail-ink: #b3372b;
+
+  --display: ui-rounded, "SF Pro Rounded", "Hiragino Maru Gothic ProN", "Arial Rounded MT Bold", "PingFang TC",
+    "Noto Sans TC", system-ui, sans-serif;
+  --text: system-ui, -apple-system, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* What the page hides stays hidden, whatever display a rule gives it. */
+[hidden] {
+  display: none !important;
+}
+
+html {
+  background: var(--board-deep);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(ellipse at 20% 0%, rgba(255, 255, 255, 0.05), transparent 55%),
+    radial-gradient(ellipse at 90% 100%, rgba(0, 0, 0, 0.25), transparent 60%),
+    var(--board);
+  color: var(--chalk);
+  font: 400 16px/1.55 var(--text);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ask);
+  outline-offset: 3px;
+}
+
+/* ------------------------------------------------------------------------ */
+/* The chalkboard: the name of the place and the day's tally. */
+
+.board {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "sign tools"
+    "tally tally";
+  gap: 6px 24px;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 28px 32px 8px;
+}
+
+.sign {
+  grid-area: sign;
+}
+
+.board h1 {
+  margin: 0;
+  font: 700 clamp(2rem, 4.2vw, 2.9rem) / 1.05 var(--display);
+  letter-spacing: 0.01em;
+  color: var(--chalk);
+  text-shadow: 0 0 1px rgba(241, 239, 230, 0.35);
+}
+
+.tagline {
+  margin: 6px 0 0;
+  color: var(--chalk-dim);
+  font-size: 1rem;
+}
+
+.tally {
+  grid-area: tally;
+  margin: 14px 0 0;
+  font: 600 1.15rem/1.4 var(--display);
+  color: var(--chalk);
+  min-height: 1.4em;
+}
+
+.tally .count {
+  font-size: 1.45rem;
+  margin-right: 0.15em;
+}
+
+.tally .sep {
+  display: inline-block;
+  width: 1.1em;
+}
+
+.tally [data-phase="work"] {
+  color: var(--work);
+}
+
+.tally [data-phase="ask"] {
+  color: var(--ask);
+}
+
+.tally [data-phase="idle"] {
+  color: var(--idle);
+}
+
+.tools {
+  grid-area: tools;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding-top: 10px;
+  font-size: 0.9rem;
+  color: var(--chalk-dim);
+}
+
+.live::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 7px;
+  border-radius: 50%;
+  background: var(--idle);
+  vertical-align: 1px;
+}
+
+.live[data-state="on"]::before {
+  background: var(--work);
+  box-shadow: 0 0 0 3px rgba(143, 209, 143, 0.18);
+}
+
+.live[data-state="wait"]::before {
+  background: var(--ask);
+}
+
+.lang {
+  text-decoration: none;
+  border-bottom: 1px solid var(--board-line);
+  padding-bottom: 1px;
+}
+
+.lang:hover {
+  color: var(--chalk);
+  border-bottom-color: var(--chalk-dim);
+}
+
+/* ------------------------------------------------------------------------ */
+/* The room: the window with the picture, and the tickets. */
+
+.room {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 18px 32px 40px;
+  display: grid;
+  gap: 32px;
+}
+
+.window {
+  margin: 0;
+  justify-self: center;
+  width: 100%;
+  max-width: 1100px;
+  padding: 10px;
+  background: linear-gradient(var(--wood-light), var(--wood));
+  border-radius: 6px;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.35),
+    0 24px 40px -24px rgba(0, 0, 0, 0.8);
+}
+
+.window img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 74vh;
+  object-fit: contain;
+  background: #c79a6c;
+  border-radius: 2px;
+}
+
+.empty {
+  display: grid;
+  gap: 6px;
+  place-items: center;
+  padding: 56px 20px;
+  background: #c79a6c;
+  border-radius: 2px;
+  color: var(--ink);
+  text-align: center;
+}
+
+.empty strong {
+  font: 700 1.25rem/1.3 var(--display);
+}
+
+.empty span {
+  color: #4b3b2f;
+}
+
+/* The tickets, clipped up in a row and wrapping. */
+.rail {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr));
+  gap: 30px 22px;
+  align-items: start;
+  padding-top: 8px;
+}
+
+.ticket {
+  position: relative;
+  padding: 20px 18px 14px;
+  background: var(--paper);
+  color: var(--ink);
+  border-radius: 1px 1px 5px 5px;
+  box-shadow:
+    0 1px 0 var(--paper-edge),
+    0 14px 22px -14px rgba(0, 0, 0, 0.75);
+  transform: rotate(var(--tilt, 0deg));
+}
+
+/* The torn top edge of a ticket off the pad. */
+.ticket::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -5px;
+  height: 6px;
+  background: radial-gradient(circle at 4px 0, transparent 3.5px, var(--paper) 4px) 0 0 / 8px 6px repeat-x;
+}
+
+/* The clip it hangs by. */
+.ticket::after {
+  content: "";
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  width: 34px;
+  height: 14px;
+  margin-left: -17px;
+  border-radius: 3px;
+  background: linear-gradient(#cfd6dc, #8a939b);
+  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.35);
+}
+
+/* A ticket with someone waiting on the person: a flag on its corner. */
+.flag {
+  position: absolute;
+  top: -10px;
+  right: 14px;
+  padding: 2px 9px 3px;
+  background: var(--ask);
+  color: var(--ink);
+  font: 700 0.78rem/1.3 var(--display);
+  border-radius: 2px 2px 2px 8px;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+}
+
+.ticket-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  padding-bottom: 10px;
+  margin-bottom: 8px;
+  border-bottom: 1px dashed #cdbfa5;
+}
+
+.ticket-title {
+  margin: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  font: 700 1.08rem/1.3 var(--display);
+  overflow-wrap: anywhere;
+}
+
+.app {
+  padding: 0 7px;
+  border: 1.5px solid currentColor;
+  border-radius: 4px;
+  color: var(--ink-dim);
+  font-size: 0.74rem;
+  font-weight: 700;
+  line-height: 1.55;
+  white-space: nowrap;
+}
+
+.app[data-app="claude"] {
+  color: #9a4a2c;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  width: 100%;
+  color: var(--ink-dim);
+  font-size: 0.8rem;
+}
+
+.meta a {
+  text-decoration-color: #b9aa8d;
+  text-underline-offset: 2px;
+}
+
+.meta a:hover {
+  color: var(--ink);
+}
+
+.seats {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+/* branch | mark | who | when
+           mark | says says */
+.seat {
+  display: grid;
+  grid-template-columns: auto 1.2em minmax(0, 1fr) auto;
+  column-gap: 5px;
+  align-items: baseline;
+  padding-left: calc(var(--depth, 0) * 18px);
+}
+
+.seat .branch {
+  grid-column: 1;
+  grid-row: 1;
+  color: #b2a48b;
+}
+
+.seat .mark {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  font-size: 0.95rem;
+  text-align: center;
+}
+
+.who {
+  grid-column: 3;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.who .name {
+  font-weight: 700;
+}
+
+.who .task {
+  color: var(--ink-dim);
+}
+
+.when {
+  grid-column: 4;
+  color: var(--ink-dim);
+  font-size: 0.8rem;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.says {
+  grid-column: 3 / span 2;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.seat[data-phase="ask"] .says {
+  justify-self: start;
+  padding: 0 4px;
+  margin-left: -4px;
+  background: linear-gradient(transparent 12%, rgba(255, 216, 77, 0.75) 12%, rgba(255, 216, 77, 0.75) 92%, transparent 92%);
+  font-weight: 600;
+}
+
+.seat[data-phase="done"] .says,
+.seat[data-phase="idle"] .says {
+  color: var(--ink-dim);
+}
+
+.seat[data-phase="fail"] .says {
+  color: var(--fail-ink);
+}
+
+.note {
+  margin: 10px 0 0;
+  color: var(--ink-dim);
+  font-size: 0.78rem;
+}
+
+/* The marks: chalk on the board, ink on a ticket. */
+.mark[data-phase="think"] {
+  color: var(--think);
+}
+.mark[data-phase="work"],
+.mark[data-phase="done"] {
+  color: var(--work);
+}
+.mark[data-phase="ask"] {
+  color: var(--ask);
+}
+.mark[data-phase="idle"] {
+  color: var(--idle);
+}
+.mark[data-phase="fail"] {
+  color: var(--fail);
+}
+.ticket .mark[data-phase="think"] {
+  color: var(--think-ink);
+}
+.ticket .mark[data-phase="work"],
+.ticket .mark[data-phase="done"] {
+  color: var(--work-ink);
+}
+.ticket .mark[data-phase="ask"] {
+  color: var(--ask-ink);
+}
+.ticket .mark[data-phase="idle"] {
+  color: var(--idle-ink);
+}
+.ticket .mark[data-phase="fail"] {
+  color: var(--fail-ink);
+}
+
+/* ------------------------------------------------------------------------ */
+/* The foot of the board: what the marks mean, and the way out. */
+
+.foot {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 32px 36px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+  color: var(--chalk-dim);
+  font-size: 0.88rem;
+}
+
+.legend {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 0;
+}
+
+.legend .mark {
+  margin: 0 5px 0 16px;
+}
+
+.legend .mark:first-child {
+  margin-left: 0;
+}
+
+.foot form {
+  margin: 0;
+}
+
+.out {
+  font: inherit;
+  color: var(--chalk-dim);
+  background: none;
+  border: 0;
+  padding: 0;
+  border-bottom: 1px solid var(--board-line);
+  cursor: pointer;
+}
+
+.out:hover {
+  color: var(--chalk);
+}
+
+/* Wide screens: the window stays in view beside the tickets. */
+@media (min-width: 1180px) {
+  .room {
+    grid-template-columns: minmax(0, 1.35fr) minmax(360px, 1fr);
+    align-items: start;
+  }
+  .window {
+    position: sticky;
+    top: 20px;
+    justify-self: stretch;
+  }
+  .rail {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .board {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "sign"
+      "tools"
+      "tally";
+    padding: 20px 16px 4px;
+  }
+  .tools {
+    padding-top: 2px;
+  }
+  .room {
+    padding: 14px 16px 32px;
+    gap: 26px;
+  }
+  .window {
+    padding: 6px;
+  }
+  .foot {
+    padding: 0 16px 28px;
+  }
+}
+
+/* ------------------------------------------------------------------------ */
+/* The door. */
+
+.door {
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+}
+
+.door-card {
+  width: min(100%, 380px);
+  padding: 30px 28px 26px;
+  background: var(--paper);
+  color: var(--ink);
+  border-radius: 2px 2px 6px 6px;
+  box-shadow: 0 20px 34px -18px rgba(0, 0, 0, 0.8);
+}
+
+.door-card h1 {
+  margin: 0;
+  font: 700 2rem/1.1 var(--display);
+}
+
+.door-card .tagline {
+  color: var(--ink-dim);
+  margin-bottom: 22px;
+}
+
+.door-card form {
+  display: grid;
+  gap: 10px;
+}
+
+.door-card label {
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+.door-card input {
+  font: inherit;
+  padding: 10px 12px;
+  border: 1.5px solid #cdbfa5;
+  border-radius: 5px;
+  background: #fffaf0;
+  color: var(--ink);
+}
+
+.door-card input:focus-visible {
+  outline: 2px solid var(--ask-ink);
+  outline-offset: 1px;
+}
+
+.door-card button {
+  margin-top: 6px;
+  font: 700 1rem/1 var(--display);
+  padding: 12px;
+  border: 0;
+  border-radius: 5px;
+  background: var(--board);
+  color: var(--chalk);
+  cursor: pointer;
+}
+
+.door-card button:hover {
+  background: var(--board-deep);
+}
+
+.problem {
+  margin: 0;
+  color: var(--fail-ink);
+  font-weight: 600;
+  font-size: 0.92rem;
+}

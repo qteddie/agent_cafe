@@ -1,0 +1,14 @@
+# Only hooks/ and web/ go into the web page's image; secrets never do.
+**/.env
+**/.env.*
+!web/.env.example
+web.json
+dist/
+docs/
+preview/
+tests/
+tools/
+scripts/
+.claude-plugin/
+**/node_modules
+**/.DS_Store

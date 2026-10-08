@@ -1,0 +1,15 @@
+# Claude Code writes the mod's TypeScript types here each time it loads the mod.
+.claude-plugin/types/
+# Sample pictures from tools/preview.ts.
+preview/
+# Debug logs from claude --debug-file.
+*.log
+.DS_Store
+
+# The web page's address and reporting key: a secret, kept out of version control.
+web.json
+# Plugin zips made by tools/pack.ts.
+dist/
+
+# web/.env holds the web page's keys.
+**/.env
