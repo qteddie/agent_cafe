@@ -7,7 +7,7 @@
 // Settings, all from the environment:
 //   CAFE_INGEST_KEY  the key reports must carry; web.json's `key` (16+ characters)
 //   CAFE_VIEW_KEY    the password for the page; a different one (16+ characters)
-//   PORT             where it listens, 8787 by default; HOST, 0.0.0.0 by default
+//   PORT             where it listens, 8080 by default; HOST, 0.0.0.0 by default
 //   TZ               the time zone times of day are shown in (Asia/Taipei, say)
 //   CAFE_DEBUG=1     log every report that comes in (what the café is told, not who sent it)
 //
@@ -29,7 +29,7 @@ import { columnsFor, viewOf } from './look'
 import { ICON, cafePage, doorPage } from './page'
 import { pageWordsFor } from './words'
 
-const PORT = Number(process.env['PORT'] ?? 8787)
+const PORT = Number(process.env['PORT'] ?? 8080)
 const HOST = process.env['HOST'] ?? '0.0.0.0'
 const INGEST_KEY = (process.env['CAFE_INGEST_KEY'] ?? '').trim()
 const VIEW_KEY = (process.env['CAFE_VIEW_KEY'] ?? '').trim()

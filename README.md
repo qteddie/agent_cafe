@@ -41,11 +41,12 @@
 - **桌面 App**：你在 Code 分頁的本機 session 打開過，pane 裡的圖、清單和圖例都有出來。
 - 在**真正的 Claude Code session** 裡跑過（Linux、隔離的設定資料夾；模型換成本機的腳本替身，所以沒有用到真的模型或額度）。headless（`claude -p`）和互動式終端機都有，情境包含：主 agent 思考與呼叫工具、前景／背景 subagent、subagent 再開 subagent、執行失敗、權限詢問、手動停掉背景 agent、`/clear`、hot reload、兩個 session 同時開。
 - **網頁版**：伺服器在本機用 Bun 跑；三種回報方式（mod 整桌回報、只有 hooks 逐筆回報、兩者並存）都用真的 session 接過，加上一個停在權限詢問的互動式 session；網頁在 Chromium 裡用桌面和手機寬度看過，中英文都有；伺服器重開後網頁會自己連回去；登入的次數限制、偽造的通行證、跨站的表單都試過會被擋。
+- **Docker**：`web/Dockerfile` 和 `compose.yaml` 用 Docker Engine 29 實際 build、啟動過。healthcheck 會過，這台機器的 `127.0.0.1:8080` 連得到；在 tunnel 容器的位置上，`web/.env` 裡的 token 有傳進去，`http://cafe:8080` 連得到（`http://localhost:8080` 連不到）；伺服器被強制結束後由 Docker 自動重啟、或單獨重建伺服器之後，也都還連得到。測試的環境拉不到 Docker Hub，所以基底映像檔是用同一個大版本的 Bun 組出來的替身，tunnel 的位置放的是一個只會試著連線的容器。
 
 **還沒驗證的**：
 
 - **Claude App 的任務真的會回報**：官方文件寫外掛的 hooks 在 Claude App 的任務裡會載入，我也在一個 Claude App 任務裡確認了回報程式需要的東西都在（Node 22.22、識別 session 的環境變數）；但「上傳外掛到你的帳號 → 任務裡跑起來 → 送到你的網域」這整條路，要等你的網域開好才能測。另外，任務的網路有允許清單，見[第 3 步](#3-讓-claude-app-的任務也回報)。
-- **Docker 映像檔**：這裡沒有 Docker 可以 build。伺服器用映像檔裡同樣的檔案配置（只有 `hooks/` 和 `web/`）跑過，`compose.yaml` 用 `docker compose config` 檢查過。
+- **真的映像檔，和 Cloudflare 那一段**：`oven/bun:1-alpine`、`cloudflare/cloudflared` 這兩個映像檔本身，以及從 Cloudflare 經過 tunnel 到伺服器的整條路，要等你在自己的機器上第一次 `docker compose --profile tunnel up -d --build` 才會跑到（上面 Docker 的測試用的是替身）。
 - macOS 上的回報程式（上面的測試都在 Linux 上）。
 - teammate（agent teams）、MCP 的 elicitation、計畫模式的批准、AskUserQuestion：只有單元測試。
 - 真的模型：替身照腳本呼叫工具，真的模型的行為更多樣。
@@ -149,8 +150,8 @@ pane 裡的圖若是空白、破圖或一直閃，把 `motion` 選項關掉（�
    openssl rand -hex 24   # 看網頁的密碼：CAFE_VIEW_KEY
    ```
 
-2. 在 Cloudflare 的 Zero Trust 後台（Networks → Tunnels）建一條 tunnel，複製它的 token；Public hostname 填你要的子網域（例如 `cafe.你的網域`），服務填 `http://cafe:8787`。
-3. 設定並啟動：
+2. 在 Cloudflare 後台（**Networking → Tunnels**）建一條 tunnel，安裝方式選 **Docker**。畫面上會出現一行 `docker run cloudflare/cloudflared:latest tunnel --no-autoupdate run --token eyJ…`，`--token` 後面那一長串就是這條 tunnel 的 token。只要複製 token，那行指令不用執行：`compose.yaml` 會用同一個映像檔跑。
+3. 設定並啟動。tunnel 只靠 `web/.env` 裡的 token 就會連上 Cloudflare：
 
    ```bash
    cd ~/Projects/agent-cafe/web
@@ -158,9 +159,12 @@ pane 裡的圖若是空白、破圖或一直閃，把 `motion` 選項關掉（�
    docker compose --profile tunnel up -d --build
    ```
 
-4. 打開 `https://cafe.你的網域`，輸入 `CAFE_VIEW_KEY`。登入一次可以用 30 天。
+4. 回到 Cloudflare 那條 tunnel 的 **Routes → Add route → Published application**：**Hostname** 填你要的子網域（例如 `cafe.你的網域`），**Service URL** 填 `http://cafe:8080`。這一格有兩個地方容易填錯：
+   - 是 `cafe`，不是 `localhost`。cloudflared 跑在自己的容器裡，那裡的 `localhost` 是它自己；`cafe` 是 `compose.yaml` 裡伺服器那個容器的名字。
+   - 是 `http`，不是 `https`。伺服器本身不處理 https，填 `https://…` 會得到 502。你的網域對外還是 https，那一段由 Cloudflare 負責。
+5. 打開 `https://cafe.你的網域`，輸入 `CAFE_VIEW_KEY`。登入一次可以用 30 天。
 
-不用 Cloudflare 也可以：`docker compose up -d --build`（不加 `--profile tunnel`）只在這台機器的 `127.0.0.1:8787` 開，再用你自己的反向代理（Caddy、nginx）接上 https。伺服器本身不處理 https。
+不用 Cloudflare 也可以：`docker compose up -d --build`（不加 `--profile tunnel`）只在這台機器的 `127.0.0.1:8080` 開，再用你自己的反向代理（Caddy、nginx）接上 https。伺服器本身不處理 https。
 
 ### 2. 讓 session 回報
 
@@ -198,7 +202,12 @@ Claude App 的任務沒有資料夾名稱可以當桌名，網頁上會顯示成
 curl -s https://cafe.你的網域/healthz        # ok
 ```
 
-想看伺服器收到了什麼，在 `web/.env` 加 `CAFE_DEBUG=1` 再重啟，`docker compose logs -f cafe` 會一行一行印出收到的回報（只有咖啡廳要顯示的那些欄位）。
+沒有回 `ok` 的時候，先看是哪一種：
+
+- **502**：tunnel 連上了，但找不到伺服器。多半是 Service URL 沒有照[第 1 步](#1-架網站)填成 `http://cafe:8080`。
+- **Cloudflare 的錯誤頁寫 1033**：tunnel 沒連上。`docker compose ps` 看 `agent-cafe-tunnel` 有沒有在跑（啟動時要加 `--profile tunnel`），`docker compose logs tunnel` 看原因，最常見的是 `web/.env` 裡的 token 沒填或貼錯。
+
+想看伺服器收到了什麼，把 `web/.env` 裡的 `CAFE_DEBUG` 設成 `1`，再跑一次 `docker compose up -d`（`docker compose restart` 不會重讀 `.env`），`docker compose logs -f cafe` 會一行一行印出收到的回報（只有咖啡廳要顯示的那些欄位）。
 
 ### 網頁送出、顯示和保存什麼
 

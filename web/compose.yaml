@@ -2,11 +2,16 @@
 #
 #   cd web
 #   cp .env.example .env                           # then fill it in
-#   docker compose up -d --build                   # the page, on http://localhost:8787
+#   docker compose up -d --build                   # the page, on http://localhost:8080
 #   docker compose --profile tunnel up -d --build  # and on your domain, through the tunnel
 #
-# In the tunnel's settings on Cloudflare, point the public hostname
-# (cafe.your-domain.com, say) at http://cafe:8787.
+# The tunnel runs from its token alone, CLOUDFLARE_TUNNEL_TOKEN in .env. Which
+# hostname it serves is set on Cloudflare, in the tunnel's routes: give the
+# hostname (cafe.your-domain.com, say) the service URL http://cafe:8080.
+#   - `cafe`, not `localhost`: in the tunnel's container, localhost is the
+#     tunnel itself. `cafe` is the page's container, by its name below.
+#   - `http`, not `https`: the page speaks no https of its own, and an https
+#     service URL gets a 502. Cloudflare serves your domain over https all the same.
 
 name: agent-cafe
 
@@ -21,9 +26,10 @@ services:
       CAFE_INGEST_KEY: ${CAFE_INGEST_KEY:?set CAFE_INGEST_KEY in web/.env}
       CAFE_VIEW_KEY: ${CAFE_VIEW_KEY:?set CAFE_VIEW_KEY in web/.env}
       TZ: ${TZ:-Asia/Taipei}
+      CAFE_DEBUG: ${CAFE_DEBUG:-}
     ports:
       # This machine only: the world comes in through the tunnel.
-      - "127.0.0.1:8787:8787"
+      - "127.0.0.1:8080:8080"
 
   tunnel:
     image: cloudflare/cloudflared:latest
@@ -31,6 +37,7 @@ services:
     restart: unless-stopped
     command: tunnel --no-autoupdate run
     environment:
+      # cloudflared takes its token from here, so it is on no command line.
       TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
     depends_on:
       - cafe
