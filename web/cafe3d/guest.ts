@@ -207,6 +207,11 @@ export class Guest {
     this.show(dt, t, world)
   }
 
+  /** Its pet was taken off (called, sent after a ball, gone home): it finds something else to do. */
+  stopPetting(world: World): void {
+    if (this.isPetting) this.next(world)
+  }
+
   /** Nudged aside by a guest it was about to walk into, where the floor allows. */
   nudge(dx: number, dz: number, nav: NavGrid): void {
     const next = { x: this.x + dx, z: this.z + dz }

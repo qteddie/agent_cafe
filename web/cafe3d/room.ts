@@ -555,7 +555,8 @@ export class Room {
     batch.box(WOOD_DARK, 0.45, SHELF_H, 0.05, sx, 0, SHELF.z0 + 0.025)
     batch.box(WOOD_DARK, 0.45, SHELF_H, 0.05, sx, 0, SHELF.z1 - 0.025)
     for (const y of [0.04, 0.55, 1.05, 1.55, 2.05]) {
-      batch.box(WOOD, 0.44, 0.04, sd - 0.1, sx, y, sz)
+      // Set back a hair from the back panel's face, so they never share a plane with it.
+      batch.box(WOOD, 0.435, 0.04, sd - 0.1, sx + 0.0025, y, sz)
       if (y > 2) continue
       let z = SHELF.z0 + 0.07
       while (z < SHELF.z1 - 0.12) {
@@ -579,8 +580,9 @@ export class Room {
     batch.box('#2f6f6a', 0.8, 0.3, 0.8, ax, 0.03, az)
     batch.box('#3a8580', 0.6, 0.08, 0.62, ax + 0.08, 0.3, az)
     batch.box('#2f6f6a', 0.18, 0.8, 0.78, ARMCHAIR.x0 + 0.09, 0.03, az)
-    batch.box('#28605b', 0.83, 0.52, 0.13, ax + 0.015, 0.03, ARMCHAIR.z0 + 0.055)
-    batch.box('#28605b', 0.83, 0.52, 0.13, ax + 0.015, 0.03, ARMCHAIR.z1 - 0.055)
+    // The arms stand out a little past the seat on every side, the back against the wall too.
+    batch.box('#28605b', 0.835, 0.52, 0.13, ax + 0.0125, 0.03, ARMCHAIR.z0 + 0.055)
+    batch.box('#28605b', 0.835, 0.52, 0.13, ax + 0.0125, 0.03, ARMCHAIR.z1 - 0.055)
     const tx = (SIDE_TABLE.x0 + SIDE_TABLE.x1) / 2
     const tz = (SIDE_TABLE.z0 + SIDE_TABLE.z1) / 2
     batch.add(WOOD, CYLINDER, tx, 0.55, tz, 0, 0.22, 0.03, 0.22)
@@ -595,8 +597,8 @@ export class Room {
     batch.box('#a8523e', 0.85, 0.3, fd, fx, 0.03, fz)
     for (const z of [1.95, 2.7, 3.45]) batch.box('#bf6650', 0.6, 0.1, 0.72, fx + 0.13, 0.3, z)
     batch.box('#a8523e', 0.22, 0.82, fd - 0.02, SOFA.x0 + 0.11, 0.03, fz)
-    batch.box('#934634', 0.87, 0.52, 0.16, fx + 0.01, 0.03, SOFA.z0 + 0.07)
-    batch.box('#934634', 0.87, 0.52, 0.16, fx + 0.01, 0.03, SOFA.z1 - 0.07)
+    batch.box('#934634', 0.875, 0.52, 0.16, fx + 0.0075, 0.03, SOFA.z0 + 0.07)
+    batch.box('#934634', 0.875, 0.52, 0.16, fx + 0.0075, 0.03, SOFA.z1 - 0.07)
     batch.add('#ffd84d', UNIT_BOX, SOFA.x0 + 0.3, 0.52, SOFA.z1 - 0.38, 0.3, 0.1, 0.3, 0.3)
     for (const [x, z] of [
       [SOFA.x0 + 0.08, SOFA.z0 + 0.08],

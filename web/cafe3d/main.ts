@@ -22,7 +22,7 @@ import {
   HALF_D,
   HALF_W,
   SLOTS,
-  SLOT_ORDER,
+  SLOT_COLUMNS,
   SPOTS,
   CAT_BEDS,
   TABLE_SEATS,
@@ -166,7 +166,10 @@ class Cafe3D implements World, PetWorld, Stage {
   )
   private markAt = -Infinity
   private readonly floorPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)
-  private pressedAt: { x: number; y: number } | undefined
+  /** Where the primary button or finger went down: a click if it comes up near there. */
+  private pressedAt: { x: number; y: number; id: number } | undefined
+  /** How much the tags say now; changed only past a margin, so a small camera move never flips it. */
+  private tagSize: 'full' | 'compact' | 'tiny' = 'full'
   private hasUserMoved = false
   private flight: { from: THREE.Vector3; fromTarget: THREE.Vector3; to: THREE.Vector3; toTarget: THREE.Vector3; t: number } | undefined
   private readonly hint: HTMLElement
@@ -226,12 +229,13 @@ class Cafe3D implements World, PetWorld, Stage {
     canvas.addEventListener('pointermove', event => this.aim(event))
     canvas.addEventListener('pointerleave', () => this.pointer.set(9, 9))
     canvas.addEventListener('pointerdown', event => {
-      this.pressedAt = { x: event.clientX, y: event.clientY }
+      // A second finger (a pinch) or another button is no click: it cancels the one begun.
+      this.pressedAt = event.isPrimary && event.button === 0 ? { x: event.clientX, y: event.clientY, id: event.pointerId } : undefined
     })
     canvas.addEventListener('pointerup', event => {
       const pressed = this.pressedAt
       this.pressedAt = undefined
-      if (pressed === undefined || Math.hypot(event.clientX - pressed.x, event.clientY - pressed.y) > 6) return
+      if (pressed === undefined || event.pointerId !== pressed.id || Math.hypot(event.clientX - pressed.x, event.clientY - pressed.y) > 6) return
       this.aim(event)
       this.click()
     })
@@ -502,7 +506,8 @@ class Cafe3D implements World, PetWorld, Stage {
       if (furniture === undefined) continue
       const columns = table === undefined ? 0 : columnsOf(table.chairs.values())
       if (furniture.shown !== columns) {
-        furniture.use(columns, SLOT_ORDER.indexOf(slot))
+        // Rug colours by the slot's place on the grid: no two neighbours alike, across or along.
+        furniture.use(columns, (slot % SLOT_COLUMNS) + 2 * Math.floor(slot / SLOT_COLUMNS))
         isMoved = true
       }
     }
@@ -622,9 +627,7 @@ class Cafe3D implements World, PetWorld, Stage {
     let best: { key: string; pet: Pet | undefined } = none
     let bestDistance = Infinity
     const hit = new THREE.Vector3()
-    const consider = (x: number, z: number, reach: number, top: number, found: { key: string; pet: Pet | undefined }): void => {
-      this.box.min.set(x - reach, 0, z - reach)
-      this.box.max.set(x + reach, top, z + reach)
+    const consider = (found: { key: string; pet: Pet | undefined }): void => {
       if (this.raycaster.ray.intersectBox(this.box, hit) === null) return
       const distance = hit.distanceTo(this.raycaster.ray.origin)
       if (distance < bestDistance) {
@@ -634,11 +637,15 @@ class Cafe3D implements World, PetWorld, Stage {
     }
     for (const guest of this.guests.values()) {
       if (guest.isLeaving || guest.body.presence < 0.5) continue
-      consider(guest.x, guest.z, 0.3, guest.body.headTop() + 0.1, { key: guest.key, pet: undefined })
+      this.box.min.set(guest.x - 0.3, 0, guest.z - 0.3)
+      this.box.max.set(guest.x + 0.3, guest.body.headTop() + 0.1, guest.z + 0.3)
+      consider({ key: guest.key, pet: undefined })
     }
     for (const pet of this.pets) {
       if (pet.isLeaving || !pet.isPresent) continue
-      consider(pet.x, pet.z, 0.32, pet.height + 0.08, { key: '', pet })
+      // The pet's own outline, turned as it stands: a dog's snout is as good as its back.
+      pet.hitBox(this.box)
+      consider({ key: '', pet })
     }
     return best
   }
@@ -669,6 +676,8 @@ class Cafe3D implements World, PetWorld, Stage {
         return
       }
     }
+    // Anywhere else (a wall, outside the room): the pet picked out is let go, and the card closed.
+    this.choosePet(undefined)
     this.options.onPick('')
   }
 
@@ -757,6 +766,10 @@ class Cafe3D implements World, PetWorld, Stage {
     for (const guest of this.guests.values()) {
       if (Math.hypot(guest.x - DOOR.inside.x, guest.z - DOOR.inside.z) < 1.6 && guest.isWalking) isDoorWanted = true
       if (guest.x > HALF_W - 0.2 && guest.body.presence > 0) isDoorWanted = true
+    }
+    // A guest whose pet the person called away, or that went home, stops petting the air.
+    for (const guest of this.guests.values()) {
+      if (guest.isPetting && !this.pets.some(pet => pet.petter === guest.key)) guest.stopPetting(this)
     }
     this.room.update(dt, t, this.motion, this.camera.position, isDoorWanted)
     this.tidy()
@@ -849,7 +862,13 @@ class Cafe3D implements World, PetWorld, Stage {
     const foot = toScreen(this.controls.target.x, 0, this.controls.target.z)
     const head = toScreen(this.controls.target.x, 1, this.controls.target.z)
     const metre = Math.abs(foot.sy - head.sy)
-    this.tags.setSize(metre < 22 ? 'tiny' : metre < 36 ? 'compact' : 'full')
+    // Each step is taken a few pixels past its mark, and given back a few pixels short of it: a
+    // camera settling after a click never flips every tag back and forth.
+    const margin = 3
+    const fullAt = this.tagSize === 'full' ? 36 - margin : 36 + margin
+    const compactAt = this.tagSize === 'tiny' ? 22 + margin : 22 - margin
+    this.tagSize = metre >= fullAt ? 'full' : metre >= compactAt ? 'compact' : 'tiny'
+    this.tags.setSize(this.tagSize)
 
     const live = new Set<string>()
     for (const guest of this.guests.values()) {
