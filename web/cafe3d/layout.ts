@@ -242,6 +242,20 @@ export function decorSpots(slot: number): Spot[] {
   ]
 }
 
+/** Half a chair's width and depth: its seat is 0.42 square, the rail along its back 0.44 wide. */
+export const CHAIR_HALF = 0.22
+
+/** The chairs standing in a slot: its table's, for `columns` chairs along each side; the small table's two while it is free. */
+export function chairsOf(slot: number, columns: number): Place[] {
+  if (columns <= 0) return decorSpots(slot)
+  return [...Array(TABLE_SEATS).keys()].filter(seat => columnOfChair(seat) < columns).map(seat => chairOf(slot, seat))
+}
+
+/** The floor a chair stands on. */
+export function chairRect(chair: Point): Rect {
+  return { x0: chair.x - CHAIR_HALF, z0: chair.z - CHAIR_HALF, x1: chair.x + CHAIR_HALF, z1: chair.z + CHAIR_HALF }
+}
+
 /** The walkable floor: the room less a margin along its walls. */
 export const FLOOR: Rect = { x0: -HALF_W + 0.25, z0: -HALF_D + 0.25, x1: HALF_W - 0.25, z1: HALF_D - 0.3 }
 

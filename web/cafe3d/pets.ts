@@ -150,7 +150,8 @@ function shape(geometry: THREE.BufferGeometry): THREE.Mesh {
 
 /** What a pet asks of the room. */
 export interface PetWorld {
-  readonly nav: NavGrid
+  /** The pets' floor: the guests', less the chairs. */
+  readonly petNav: NavGrid
   readonly motion: number
   readonly now: number
   /** A spot for a cat to sleep on that no other cat has; undefined when all are taken. */
@@ -353,7 +354,7 @@ export class Pet {
     }
     this.letGoOfBall(world.now)
     this.errand = 'come'
-    this.send(world.nav.nearestPoint(point), world)
+    this.send(world.petNav.nearestPoint(point), world)
     return true
   }
 
@@ -364,7 +365,7 @@ export class Pet {
     this.ball = ball
     this.errand = 'fetch'
     this.say(SAYS.dog[0] ?? '', world.now)
-    this.send(world.nav.nearestPoint(ball), world)
+    this.send(world.petNav.nearestPoint(ball), world)
   }
 
   /** Off on an errand to `goal`: at once, for a page that asks for less motion. */
@@ -379,7 +380,7 @@ export class Pet {
       this.path = []
       return
     }
-    this.path = world.nav.path(this, goal)
+    this.path = world.petNav.path(this, goal)
   }
 
   /** Drops a ball it carries where it stands, and forgets about it. */
@@ -438,7 +439,7 @@ export class Pet {
       this.yaw = -Math.PI / 2
       this.presence = 0
       this.goal = start
-      this.path = [DOOR.inside, ...world.nav.path(DOOR.inside, start)]
+      this.path = [DOOR.inside, ...world.petNav.path(DOOR.inside, start)]
       this.mood = 'walk'
       this.moodUntil = 0
       return
@@ -461,7 +462,39 @@ export class Pet {
       this.isGone = true
       return
     }
-    this.path = this.x > HALF_W ? [DOOR.outside] : [...world.nav.path(this, DOOR.inside), DOOR.outside]
+    this.path = this.x > HALF_W ? [DOOR.outside] : [...world.petNav.path(this, DOOR.inside), DOOR.outside]
+  }
+
+  /**
+   * The furniture moved (a table came, grew, or went): the way is found again, and a pet a
+   * table or a chair just came down on gets up and goes to the free floor nearest it.
+   */
+  reroute(world: PetWorld): void {
+    const nav = world.petNav
+    if (this.mood === 'leave') {
+      if (world.motion > 0 && this.path.length > 0 && this.x <= HALF_W) this.path = [...nav.path(this, DOOR.inside), DOOR.outside]
+      return
+    }
+    if (this.path.length > 0) {
+      if (world.motion === 0 || this.x > HALF_W) return
+      // A ball lies where it fell; anywhere else it goes to the free floor nearest where it meant to.
+      if (this.errand !== 'fetch') this.goal = nav.nearestPoint(this.goal)
+      this.path = nav.path(this, this.goal)
+      return
+    }
+    if (nav.isFree(this)) return
+    const spot = nav.nearestPoint(this)
+    this.petter = ''
+    this.excitedUntil = 0
+    this.goal = spot
+    if (world.motion === 0) {
+      this.x = spot.x
+      this.z = spot.z
+      return
+    }
+    // Up, over, and down again there.
+    this.mood = 'walk'
+    this.path = [spot]
   }
 
   /** Where a guest stands to pet it: beside it, facing it. */
@@ -492,7 +525,7 @@ export class Pet {
         return
       }
       this.goal = bed
-      this.path = world.nav.path(this, bed)
+      this.path = world.petNav.path(this, bed)
       this.mood = 'walk'
       return
     }
@@ -505,7 +538,7 @@ export class Pet {
     const visit = this.random() < 0.45 ? world.besideResting(this.random) : undefined
     const goal = visit ?? world.floorPoint(this.random)
     this.goal = goal
-    this.path = world.nav.path(this, goal)
+    this.path = world.petNav.path(this, goal)
     this.mood = 'walk'
   }
 
