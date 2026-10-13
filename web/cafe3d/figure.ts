@@ -4,8 +4,12 @@
 // and adding a trait never changes the people already in the café.
 //
 // The main loop of every session wears Claude's orange, in one of three
-// shades and four cuts; nobody else wears orange. Everything else (skin,
-// hair, hats, glasses, beards, build) is the person's own.
+// shades and four cuts; nobody else wears orange, not even a shoe or a hat.
+// Everything else (skin, hair, hats, glasses, beards, build) is the person's own.
+//
+// This is the 3D café's own look. The pixel-art café in the pane keeps its
+// simpler looks (hooks/sprites.ts lookOf) on purpose, so the same agent looks
+// different there.
 
 import { INK, blushOf, darken, hash, lighten } from '../../hooks/sprites'
 import type { Kind } from '../../hooks/tracker'
@@ -46,7 +50,11 @@ export type Figure = {
 // ---------------------------------------------------------------------------
 // The rolls.
 
-/** A stable number for one trait of one key: FNV-1a, then murmur3's finalizer so every bit counts. */
+/**
+ * A stable number for one trait of one key: FNV-1a, then mixed once more
+ * (murmur3's last step) so that keys differing only in their last characters
+ * still land on different picks.
+ */
 export function roll(key: string, trait: string): number {
   let value = hash(`${trait}|${key}`)
   value ^= value >>> 16
@@ -100,6 +108,8 @@ export const HAIR_COLORS: readonly (readonly [string, number])[] = [
   ['#e08aa8', 0.6], // pink, dyed
 ]
 
+const OATMEAL = '#e6dcc6'
+const LEMON = '#e3cf62'
 /** The main loop's orange: Claude's own, and a lighter and a deeper one. */
 export const MAIN_TOPS: readonly string[] = ['#d97757', '#e58b5d', '#c4613f']
 /** Everyone else's: no orange, no red or amber that reads as orange from across the room. */
@@ -114,19 +124,19 @@ export const TOPS: readonly string[] = [
   '#9b3d55', // berry
   '#6b7c93', // slate
   '#3b3b45', // charcoal
-  '#e6dcc6', // oatmeal
-  '#e3cf62', // lemon
+  OATMEAL,
+  LEMON,
 ]
 const SHIRTS: readonly string[] = ['#f4efe6', '#cfe0ef', '#f2e3c4']
 const APRONS: readonly string[] = ['#5a4032', '#3f5a7a', '#c9b48f', '#3d5a45', '#2f2a28']
 const SCARVES: readonly string[] = ['#b8323a', '#d8b13a', '#f4efe6', '#3f6fb0', '#5f8f5a', '#8e6bbf']
-const HATS: readonly string[] = ['#b8323a', '#3f6fb0', '#3d8f5a', '#d8b13a', '#2f2a28', '#e6dcc6', '#8e6bbf', '#d27aa8', '#5a4032']
+const HATS: readonly string[] = ['#b8323a', '#3f6fb0', '#3d8f5a', '#d8b13a', '#2f2a28', OATMEAL, '#8e6bbf', '#d27aa8', '#5a4032']
 const PANTS: readonly string[] = ['#3b4252', '#4a3f35', '#2f3e46', '#55463a', '#36454f', '#40394a', '#3f5f86', '#8a7d62']
 const SHOES: readonly (readonly [string, number])[] = [
   ['#2b2320', 4],
   ['#f2efe8', 2],
   ['#6b4a32', 2],
-  ['#a8452f', 0.7],
+  ['#8a3b4a', 0.7], // oxblood: a red that never reads as the main's orange
 ]
 const FRAMES: readonly string[] = [INK, INK, '#7a4a26', '#9b3d55']
 const DENIM = '#3f5f86'
@@ -146,7 +156,7 @@ const TORSOS: readonly (readonly [number, number])[] = [
   [0.32, 2],
   [0.36, 1],
 ]
-/** Sizes, each as likely: at most 1.08, so a broad torso seated stays clear of the chair back. */
+/** Sizes, each as likely: at most 1.08, so a broad guest seated still fits between the chair back and the table. */
 export const SCALES: readonly number[] = [0.92, 0.96, 1, 1.04, 1.08]
 
 // ---------------------------------------------------------------------------
@@ -170,63 +180,68 @@ const CROWN = piece('hair', 0.46, 0.11, 0.43, 0, 0.38, -0.01)
 const BACK = piece('hair', 0.47, 0.3, 0.08, 0, 0.24, -0.2)
 const SIDES = pair('hair', 0.05, 0.16, 0.29, 0.215, 0.28, -0.035)
 
-export const STYLE_NAMES = ['short', 'fringe', 'long', 'bun', 'ponytail', 'pigtails', 'afro', 'buzz', 'bald', 'bob', 'quiff', 'mohawk', 'spiky', 'spacebuns'] as const
+/** A hair style: its name, how often it is worn and its pieces. */
+type Style = { name: string; weight: number; pieces: readonly Piece[] }
 
-/** The hair styles, by STYLE_NAMES; the first four are those of the café picture. */
-export const STYLES: readonly (readonly Piece[])[] = [
-  // short
-  [CROWN, BACK, ...SIDES],
-  // fringe, swept to one side
-  [CROWN, BACK, ...pair('hair', 0.05, 0.2, 0.33, 0.215, 0.26, -0.015), piece('hair', 0.3, 0.08, 0.05, -0.07, 0.32, 0.2)],
-  // long, to the shoulders
-  [CROWN, piece('hair', 0.47, 0.56, 0.09, 0, 0.12, -0.2), ...pair('hair', 0.05, 0.46, 0.3, 0.218, 0.16, -0.05)],
-  // a bun on top
-  [CROWN, BACK, ...SIDES, piece('hair', 0.18, 0.17, 0.17, 0, 0.5, -0.08)],
-  // a ponytail, tied at the back
-  [CROWN, BACK, ...SIDES, piece('hairDark', 0.11, 0.07, 0.06, 0, 0.3, -0.265), piece('hair', 0.12, 0.3, 0.09, 0, 0.13, -0.29)],
-  // pigtails, one behind each ear
-  [
-    CROWN,
-    piece('hair', 0.47, 0.24, 0.08, 0, 0.27, -0.2),
-    ...SIDES,
-    ...pair('hairDark', 0.08, 0.08, 0.08, 0.27, 0.31, -0.05),
-    ...pair('hair', 0.12, 0.28, 0.12, 0.31, 0.14, -0.05),
-  ],
-  // an afro: big and round
-  [piece('hair', 0.54, 0.2, 0.5, 0, 0.42, -0.02), ...pair('hair', 0.05, 0.26, 0.42, 0.235, 0.25, -0.03), piece('hair', 0.54, 0.36, 0.1, 0, 0.23, -0.22)],
-  // buzzed close
-  [piece('hair', 0.44, 0.05, 0.41, 0, 0.385, -0.005), piece('hair', 0.44, 0.2, 0.04, 0, 0.27, -0.195), ...pair('hair', 0.03, 0.12, 0.24, 0.215, 0.3, -0.04)],
-  // bald on top, a ring of hair round the back
-  [piece('hair', 0.44, 0.16, 0.05, 0, 0.2, -0.195), ...pair('hair', 0.035, 0.14, 0.22, 0.215, 0.21, -0.06)],
-  // a bob, with a straight fringe
-  [CROWN, piece('hair', 0.48, 0.36, 0.09, 0, 0.2, -0.2), ...pair('hair', 0.06, 0.3, 0.36, 0.225, 0.21, -0.01), piece('hair', 0.44, 0.08, 0.05, 0, 0.33, 0.2)],
-  // a quiff, swept up at the front
-  [CROWN, BACK, ...SIDES, piece('hair', 0.34, 0.11, 0.26, 0, 0.47, 0.06)],
-  // a mohawk
-  [piece('hair', 0.12, 0.14, 0.46, 0, 0.44, -0.02), piece('hair', 0.12, 0.24, 0.06, 0, 0.27, -0.2)],
-  // spiky, tufts standing up all over
-  [
-    CROWN,
-    BACK,
-    ...SIDES,
-    piece('hair', 0.11, 0.13, 0.11, -0.14, 0.49, 0.08),
-    piece('hair', 0.11, 0.17, 0.11, 0, 0.51, 0.1),
-    piece('hair', 0.11, 0.13, 0.11, 0.14, 0.49, 0.06),
-    piece('hair', 0.11, 0.14, 0.11, -0.08, 0.5, -0.1),
-    piece('hair', 0.11, 0.13, 0.11, 0.09, 0.49, -0.12),
-  ],
-  // two buns on top
-  [CROWN, BACK, ...SIDES, ...pair('hair', 0.16, 0.15, 0.16, 0.15, 0.49, -0.04)],
+/** The hair styles, each as likely as its weight; the first four are those of the café picture. */
+export const STYLES: readonly Style[] = [
+  { name: 'short', weight: 3, pieces: [CROWN, BACK, ...SIDES] },
+  // Swept to one side.
+  { name: 'fringe', weight: 2, pieces: [CROWN, BACK, ...pair('hair', 0.05, 0.2, 0.33, 0.215, 0.26, -0.015), piece('hair', 0.3, 0.08, 0.05, -0.07, 0.32, 0.2)] },
+  // To the shoulders.
+  { name: 'long', weight: 2, pieces: [CROWN, piece('hair', 0.47, 0.56, 0.09, 0, 0.12, -0.2), ...pair('hair', 0.05, 0.46, 0.3, 0.218, 0.16, -0.05)] },
+  // A bun on top.
+  { name: 'bun', weight: 1.2, pieces: [CROWN, BACK, ...SIDES, piece('hair', 0.18, 0.17, 0.17, 0, 0.5, -0.08)] },
+  // Tied at the back.
+  { name: 'ponytail', weight: 1.5, pieces: [CROWN, BACK, ...SIDES, piece('hairDark', 0.11, 0.07, 0.06, 0, 0.3, -0.265), piece('hair', 0.12, 0.3, 0.09, 0, 0.13, -0.29)] },
+  // One behind each ear.
+  {
+    name: 'pigtails',
+    weight: 0.7,
+    pieces: [
+      CROWN,
+      piece('hair', 0.47, 0.24, 0.08, 0, 0.27, -0.2),
+      ...SIDES,
+      ...pair('hairDark', 0.08, 0.08, 0.08, 0.27, 0.31, -0.05),
+      ...pair('hair', 0.12, 0.28, 0.12, 0.31, 0.14, -0.05),
+    ],
+  },
+  // Big and round.
+  { name: 'afro', weight: 1, pieces: [piece('hair', 0.54, 0.2, 0.5, 0, 0.42, -0.02), ...pair('hair', 0.05, 0.26, 0.42, 0.235, 0.25, -0.03), piece('hair', 0.54, 0.36, 0.1, 0, 0.23, -0.22)] },
+  // Buzzed close.
+  { name: 'buzz', weight: 1.2, pieces: [piece('hair', 0.44, 0.05, 0.41, 0, 0.385, -0.005), piece('hair', 0.44, 0.2, 0.04, 0, 0.27, -0.195), ...pair('hair', 0.03, 0.12, 0.24, 0.215, 0.3, -0.04)] },
+  // Bald on top, a ring of hair round the back.
+  { name: 'bald', weight: 0.8, pieces: [piece('hair', 0.44, 0.16, 0.05, 0, 0.2, -0.195), ...pair('hair', 0.035, 0.14, 0.22, 0.215, 0.21, -0.06)] },
+  // With a straight fringe.
+  { name: 'bob', weight: 1.5, pieces: [CROWN, piece('hair', 0.48, 0.36, 0.09, 0, 0.2, -0.2), ...pair('hair', 0.06, 0.3, 0.36, 0.225, 0.21, -0.01), piece('hair', 0.44, 0.08, 0.05, 0, 0.33, 0.2)] },
+  // Swept up at the front.
+  { name: 'quiff', weight: 1.2, pieces: [CROWN, BACK, ...SIDES, piece('hair', 0.34, 0.11, 0.26, 0, 0.47, 0.06)] },
+  { name: 'mohawk', weight: 0.4, pieces: [piece('hair', 0.12, 0.14, 0.46, 0, 0.44, -0.02), piece('hair', 0.12, 0.24, 0.06, 0, 0.27, -0.2)] },
+  // Tufts standing up all over.
+  {
+    name: 'spiky',
+    weight: 0.8,
+    pieces: [
+      CROWN,
+      BACK,
+      ...SIDES,
+      piece('hair', 0.11, 0.13, 0.11, -0.14, 0.49, 0.08),
+      piece('hair', 0.11, 0.17, 0.11, 0, 0.51, 0.1),
+      piece('hair', 0.11, 0.13, 0.11, 0.14, 0.49, 0.06),
+      piece('hair', 0.11, 0.14, 0.11, -0.08, 0.5, -0.1),
+      piece('hair', 0.11, 0.13, 0.11, 0.09, 0.49, -0.12),
+    ],
+  },
+  // Two buns on top.
+  { name: 'spacebuns', weight: 0.8, pieces: [CROWN, BACK, ...SIDES, ...pair('hair', 0.16, 0.15, 0.16, 0.15, 0.49, -0.04)] },
 ]
-
-const STYLE_WEIGHTS: readonly number[] = [3, 2, 2, 1.2, 1.5, 0.7, 1, 1.2, 0.8, 1.5, 1.2, 0.4, 0.8, 0.8]
 
 /** What a hat covers: no hair shows above this. Headphones and a headband cover none. */
 export const BANDS: Readonly<Record<Headwear, number>> = {
   none: Infinity,
   cap: 0.31,
   beanie: 0.28,
-  beret: 0.395,
+  beret: 0.38,
   bucket: 0.34,
   flatcap: 0.35,
   sunhat: 0.36,
@@ -287,7 +302,8 @@ function hatPieces(headwear: Headwear, hair: readonly Piece[]): Piece[] {
     case 'beanie':
       return [piece('hat', 0.47, 0.19, 0.45, 0, 0.395, -0.01), piece('hatDark', 0.485, 0.07, 0.465, 0, 0.315, -0.01), piece('pom', 0.13, 0.11, 0.13, 0, 0.54, -0.01)]
     case 'beret':
-      return [piece('hat', 0.5, 0.07, 0.47, 0.03, 0.43, -0.02), piece('hat', 0.04, 0.04, 0.04, 0.03, 0.485, -0.02)]
+      // Down on the head, so no gap shows under it on a bald head.
+      return [piece('hat', 0.5, 0.07, 0.47, 0.03, 0.415, -0.02), piece('hat', 0.04, 0.04, 0.04, 0.03, 0.47, -0.02)]
     case 'bucket':
       return [piece('hat', 0.44, 0.15, 0.42, 0, 0.435, -0.01), piece('hatDark', 0.58, 0.03, 0.56, 0, 0.355, -0.01)]
     case 'flatcap':
@@ -297,8 +313,9 @@ function hatPieces(headwear: Headwear, hair: readonly Piece[]): Piece[] {
     case 'tophat':
       return [piece('hatDark', 0.56, 0.03, 0.52, 0, 0.395, -0.01), piece('hat', 0.34, 0.27, 0.32, 0, 0.545, -0.01), piece('band', 0.35, 0.05, 0.33, 0, 0.44, -0.01)]
     case 'headphones': {
-      // The cups on the ears, the band over the crown just ahead of a bun or a ponytail.
-      const cupX = wrap(hair, 0.15, 0.3, -0.03, 0.12).x + 0.02
+      // The cups on the ears, the band over the crown just ahead of a bun or a ponytail. Only the hair
+      // beside the ears' front counts, so pigtails, tied just behind the ears, hang behind the cups.
+      const cupX = wrap(hair, 0.15, 0.3, 0.02, 0.12).x + 0.02
       const bandY = wrap(hair, 0, 1, 0.01, 0.08).top + 0.02
       return [
         ...pair('hat', 0.06, 0.15, 0.15, cupX, 0.21, 0.045),
@@ -307,7 +324,8 @@ function hatPieces(headwear: Headwear, hair: readonly Piece[]): Piece[] {
       ]
     }
     case 'headband': {
-      const round = wrap(hair, 0.305, 0.355)
+      // The band goes round the head and its hair; a tie stays outside it.
+      const round = wrap(hair.filter(each => each.ink === 'hair'), 0.305, 0.355)
       const front = round.front + 0.006
       const back = round.back - 0.006
       return [piece('hat', round.x * 2 + 0.012, 0.05, front - back, 0, 0.33, (front + back) / 2)]
@@ -374,7 +392,7 @@ export function figureOf(key: string, kind: Kind): Figure {
     skin: pick(SKINS, key, 'skin'),
     hair: weighted(HAIR_COLORS, key, 'hair'),
     style: weighted(
-      STYLE_WEIGHTS.map((weight, index) => [index, weight] as const),
+      STYLES.map((each, index) => [index, each.weight] as const),
       key,
       'style',
     ),
@@ -404,8 +422,8 @@ export function figureOf(key: string, kind: Kind): Figure {
 /** The head's parts (the head itself, its face, hair, hat, glasses and beard) and how high its top is. */
 export function headParts(figure: Figure): { parts: Part[]; top: number } {
   const blush = blushOf(figure.skin)
-  const style = STYLES[figure.style] ?? STYLES[0] ?? []
-  const hair = trimmed(style, BANDS[figure.headwear])
+  const style = STYLES[figure.style] ?? STYLES[0]
+  const hair = trimmed(style?.pieces ?? [], BANDS[figure.headwear])
   const pieces = [...hair, ...hatPieces(figure.headwear, hair), ...eyewearPieces(figure.eyewear), ...beardPieces(figure.beard)]
   const inks: Readonly<Record<Ink, string>> = {
     hair: figure.hair,
@@ -414,7 +432,8 @@ export function headParts(figure: Figure): { parts: Part[]; top: number } {
     hatDark: darken(figure.hat),
     band: lighten(figure.hat),
     straw: STRAW,
-    pom: figure.hat === CREAM || figure.hat === '#e6dcc6' ? '#c9534a' : CREAM,
+    // Red on an oatmeal hat, cream on the rest.
+    pom: figure.hat === OATMEAL ? '#b8323a' : CREAM,
     frame: figure.frame,
     lens: '#1d1f24',
     mouth: '#b5574f',
@@ -434,7 +453,7 @@ export function headParts(figure: Figure): { parts: Part[]; top: number } {
 
 /** A stripe on cream: the top's colour, or navy when that is too pale to show. */
 function stripeOf(top: string): string {
-  return top === '#e6dcc6' || top === '#e3cf62' ? '#2f4a6d' : top
+  return top === OATMEAL || top === LEMON ? '#2f4a6d' : top
 }
 
 /** The torso's parts, from the hips (y 0) up to the neck (y `figure.torso`). */
@@ -456,7 +475,8 @@ export function torsoParts(figure: Figure): Part[] {
       const dark = darken(top)
       parts.push(
         part(top, w, h, d, 0, h / 2, 0),
-        part(dark, 0.3, 0.11, 0.045, 0, h - 0.075, back - 0.02),
+        // The hood lies flat on the back: seated, the guest sits forward by as much as it sticks out (seatOf).
+        part(dark, 0.3, 0.11, 0.03, 0, h - 0.075, back - 0.012),
         part(dark, 0.22, 0.08, 0.012, 0, 0.08, front + 0.004),
         part(CREAM, 0.015, 0.08, 0.012, 0.045, h - 0.08, front + 0.004),
         part(CREAM, 0.015, 0.08, 0.012, -0.045, h - 0.08, front + 0.004),
@@ -503,6 +523,19 @@ export function torsoParts(figure: Figure): Part[] {
   return parts
 }
 
+/** The front face of a chair's back, behind the chair's middle (room.ts, chairGeometry: its top rail). */
+const CHAIR_BACK = -0.155
+
+/**
+ * Seated, where the hips sit from the chair's middle toward its front: back on
+ * the seat (0.04 behind the middle), but no further back than what the guest
+ * wears allows, so a hood, a scarf or a broad back stays out of the chair back.
+ */
+export function seatOf(figure: Figure): number {
+  const back = torsoParts(figure).reduce((most, each) => Math.max(most, each.d / 2 - each.z), 0)
+  return Math.max(-0.04, CHAIR_BACK + 0.005 + figure.scale * back)
+}
+
 /** An arm's parts, from the shoulder (y 0) down to the hand. */
 export function armParts(figure: Figure): Part[] {
   const sleeve = figure.garment === 'vest' ? figure.trim : figure.garment === 'stripes' ? CREAM : figure.top
@@ -529,7 +562,8 @@ export function legParts(figure: Figure): Part[] {
     case 'shorts':
       return [part(figure.pants, 0.16, 0.11, 0.18, -0.055), part(figure.skin, 0.12, 0.13, 0.14, -0.17), shoe]
     case 'skirt':
-      // Each leg carries the half of the skirt on its side and a little past the middle: seated, it folds onto the lap.
-      return [part(figure.pants, 2 * HIP_X + 0.04, 0.15, 0.22, -0.065, 0.02), part(figure.skin, 0.12, 0.1, 0.14, -0.18), shoe]
+      // Each leg carries the half of the skirt on its side and a little past the middle. Seated, the leg turns
+      // forward and the skirt's depth stands up above the hips, so it is no deeper than shorts: it lies on the lap.
+      return [part(figure.pants, 2 * HIP_X + 0.04, 0.15, 0.18, -0.065), part(figure.skin, 0.12, 0.1, 0.14, -0.18), shoe]
   }
 }

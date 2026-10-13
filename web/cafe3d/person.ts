@@ -1,13 +1,17 @@
-// A guest's body: a little voxel person in the look the café picture gives
-// the same agent (hooks/sprites.ts: skin, hair, top, head style), and the
-// poses it takes. A pose names where each joint should be; the joints ease
-// there, so one pose melts into the next.
+// A guest's body: a little voxel person built from its figure (figure.ts: who
+// it is, rolled from its agent's key), and the poses it takes. A pose names
+// where each joint should be; the joints ease there, so one pose melts into
+// the next.
+//
+// The look is not the café picture's: the pixel-art café in the pane keeps its
+// own, simpler looks (hooks/sprites.ts lookOf) on purpose, so the same agent
+// looks different there.
 
 import * as THREE from 'three'
 
 import { hash } from '../../hooks/sprites'
 import type { Figure } from './figure'
-import { HIP_X, armParts, headParts, legParts, torsoParts } from './figure'
+import { HIP_X, armParts, headParts, legParts, seatOf, torsoParts } from './figure'
 import type { BubbleName, Part } from './kit'
 import { PAINT, UNIT_BOX, bubbleTexture, glow, partsGeometry } from './kit'
 import { TABLE_H } from './layout'
@@ -206,12 +210,12 @@ function poseJoints(pose: Pose, isSeated: boolean, t: number, phase: number, mot
       joints.headX = 0.32 + 0.09 * wave(2)
       break
     case 'pet':
-      joints.lift = -0.06
-      joints.lean = 0.5
+      // Bent at the hips down to the pet, the feet on the floor.
+      joints.lean = 0.6
       joints.armLx = -0.3
       joints.armRx = -0.85 + 0.25 * wave(5)
       joints.armRz = 0.12
-      joints.headX = 0.35
+      joints.headX = 0.4
       break
   }
   return joints
@@ -246,6 +250,8 @@ export class Body {
   private readonly scale: number
   /** The top of its head (or hat) standing, from the floor. */
   private readonly height: number
+  /** Seated, how far forward of the chair's middle its hips are. */
+  private readonly seat: number
   private pose: Pose = 'stand'
   private isSeated = false
   private seatLift = 0
@@ -268,6 +274,7 @@ export class Body {
     this.owned = [leg, arm, torso, head]
     this.scale = figure.scale
     this.height = figure.scale * (LEG + figure.torso + face.top)
+    this.seat = seatOf(figure)
     const shoulder = figure.torso - 0.02
     const reach = figure.width / 2 + 0.055
 
@@ -389,8 +396,8 @@ export class Body {
     this.head.rotation.set(joints.headX, joints.headY, joints.headZ)
     this.upper.rotation.set(joints.lean, joints.turn, 0)
     this.body.position.y = this.seatLift + joints.lift
-    // Seated, the hips sit back on the seat.
-    this.body.position.z = this.isSeated ? -0.04 : 0
+    // Seated, the hips sit back on the seat, as far back as what it wears allows.
+    this.body.position.z = this.isSeated ? this.seat : 0
     // A cup, a magnifier or a note stays upright whatever the arm does.
     this.cup.rotation.x = -joints.armRx - joints.lean
     this.lens.rotation.x = -joints.armRx - 0.4
