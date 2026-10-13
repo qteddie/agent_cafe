@@ -44,7 +44,7 @@ import {
 import type { Cafe, Line, Snap } from './view'
 import { MARKS, TABLE_SEATS, arrange, linesOf, parseSnap, signatureOf, textOf } from './view'
 import type { App, Inbox, Post } from './wire'
-import { inboxOf } from './wire'
+import { inboxOf, inboxOfFile, isWebSet } from './wire'
 
 /** The pane's id: what `$.ui.open` names and the render hook's `requestId`. */
 const PANE = 'agent-cafe'
@@ -402,18 +402,22 @@ async function listen($: EngineInterface, shop: Shop, now: number): Promise<bool
 }
 
 /**
- * Where the café's web page takes reports: web.json, beside the plugin's
- * manifest folder, as `{ "url": "https://…", "key": "…" }`. Undefined without
- * one, or with one that does not say both.
+ * Where the café's web page takes reports: the plugin's settings (`web_url`
+ * and `web_key`, set with `claude plugin configure`) when they name it, or
+ * else web.json, beside the plugin's manifest folder, as
+ * `{ "url": "https://…", "key": "…" }`. Undefined without either, or with one
+ * that does not say both.
  */
-async function readInbox($: EngineInterface): Promise<Inbox | undefined> {
+async function readInbox($: EngineInterface, url: unknown, key: unknown): Promise<Inbox | undefined> {
   try {
+    if (isWebSet(url, key)) {
+      const inbox = inboxOf(url, key)
+      if (inbox === undefined) whisper($, 'the web_url and web_key settings do not name an https address and a key')
+      return inbox
+    }
     const path = `${$.plugin.root}/web.json`
     if (!(await $.fs.exists(path))) return undefined
-    const config: unknown = JSON.parse(String(await $.fs.read(path)))
-    if (typeof config !== 'object' || config === null) return undefined
-    const fields = config as Readonly<Record<string, unknown>>
-    const inbox = inboxOf(fields['url'], fields['key'])
+    const inbox = inboxOfFile(JSON.parse(String(await $.fs.read(path))))
     if (inbox === undefined) whisper($, 'web.json does not name an https address and a key')
     return inbox
   } catch (error) {
@@ -533,7 +537,7 @@ export const register: Register = (on, options) => {
       whisper($, error)
     }
     // Read at each start: a reload, or a new web.json, takes effect there.
-    shop.web = await readInbox($)
+    shop.web = await readInbox($, options['web_url'], options['web_key'])
     try {
       shop.timer?.cancel()
       shop.timer = $.clock.every(TICK_MS, () => {

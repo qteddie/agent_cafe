@@ -471,6 +471,16 @@ function inboxOf(base, key) {
     url.pathname += "/";
   return { url: new URL("in", url).toString(), key: secret };
 }
+function isWebSet(url, key) {
+  const isFilled = (value) => typeof value === "string" && value.trim() !== "";
+  return isFilled(url) || isFilled(key);
+}
+function inboxOfFile(config) {
+  if (typeof config !== "object" || config === null)
+    return;
+  const fields = config;
+  return inboxOf(fields["url"], fields["key"]);
+}
 function appOf(env) {
   const entry = env["CLAUDE_CODE_ENTRYPOINT"] ?? "";
   if (entry === "remote_cowork" || env["CLAUDE_CODE_SESSION_ORIGIN"] === "claude_ai_chat")
@@ -554,12 +564,14 @@ function isDown(file, now) {
   }
 }
 async function main() {
+  const url = process.env["CLAUDE_PLUGIN_OPTION_WEB_URL"];
+  const key = process.env["CLAUDE_PLUGIN_OPTION_WEB_KEY"];
   const root = process.env["CLAUDE_PLUGIN_ROOT"];
-  if (root === undefined || root === "")
-    return;
-  const config = JSON.parse(readFileSync(join(root, "web.json"), "utf8"));
-  const fields = typeof config === "object" && config !== null ? config : {};
-  const inbox = inboxOf(fields["url"], fields["key"]);
+  let inbox;
+  if (isWebSet(url, key))
+    inbox = inboxOf(url, key);
+  else if (root !== undefined && root !== "")
+    inbox = inboxOfFile(JSON.parse(readFileSync(join(root, "web.json"), "utf8")));
   if (inbox === undefined)
     return;
   const now = Date.now();

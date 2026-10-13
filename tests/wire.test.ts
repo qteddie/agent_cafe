@@ -4,7 +4,7 @@
 import { describe, expect, test } from 'claude-code/testing'
 
 import type { Ev } from '../hooks/wire'
-import { appOf, eventOf, eventPostOf, inboxOf, linkOf, parsePost, sessionLink, titleFor } from '../hooks/wire'
+import { appOf, eventOf, eventPostOf, inboxOf, inboxOfFile, isWebSet, linkOf, parsePost, sessionLink, titleFor } from '../hooks/wire'
 import { ASKED, BACKGROUND, FAILED, FOREGROUND, NESTED } from './runs'
 import { seat, snap } from './world'
 
@@ -222,6 +222,17 @@ describe('where a report goes, and where it comes from', () => {
     expect(inboxOf('ftp://cafe.example.com', 'k')).toBeUndefined()
     expect(inboxOf('https://cafe.example.com', '')).toBeUndefined()
     expect(inboxOf(undefined, 'k')).toBeUndefined()
+  })
+
+  test('the settings name the page once either is filled in; web.json names it otherwise', () => {
+    expect(isWebSet('https://cafe.example.com', '')).toBe(true)
+    expect(isWebSet(undefined, 'k')).toBe(true)
+    expect(isWebSet('', ' ')).toBe(false)
+    expect(isWebSet(undefined, undefined)).toBe(false)
+    expect(inboxOfFile({ url: 'https://cafe.example.com', key: 'k' })).toEqual({ url: 'https://cafe.example.com/in', key: 'k' })
+    expect(inboxOfFile({ url: 'https://cafe.example.com' })).toBeUndefined()
+    expect(inboxOfFile(null)).toBeUndefined()
+    expect(inboxOfFile('https://cafe.example.com')).toBeUndefined()
   })
 
   test('tells the apps apart by what Claude Code puts in the environment', () => {

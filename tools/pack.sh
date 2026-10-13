@@ -9,7 +9,7 @@
 set -eu
 cd "$(dirname "$0")/.."
 if [ ! -f web.json ]; then
-  echo "web.json is missing: write it first (README, 網頁版)." >&2
+  echo "web.json is missing: write it first (README, \"Claude app tasks\")." >&2
   exit 1
 fi
 # The reporter is built from web/report.ts: rebuilt here when Bun is around,
@@ -19,5 +19,5 @@ if command -v bun >/dev/null 2>&1; then
 fi
 mkdir -p dist
 rm -f dist/agent-cafe.zip
-zip -qr dist/agent-cafe.zip .claude-plugin/plugin.json hooks scripts web.json README.md -x '*.DS_Store'
+zip -qr dist/agent-cafe.zip .claude-plugin/plugin.json hooks scripts web.json README.md LICENSE -x '*.DS_Store'
 echo "dist/agent-cafe.zip"

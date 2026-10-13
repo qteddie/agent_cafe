@@ -1,7 +1,8 @@
 // The hook-event reporter. Claude Code runs it for each hook event that
-// hooks/hooks.json names, once web.json sets up the café's web page: it reads
-// the event on stdin, keeps only what the café shows (hooks/wire.ts says what
-// that is) and posts it to the page.
+// hooks/hooks.json names, once the plugin's settings (web_url, web_key) or
+// web.json set up the café's web page: it reads the event on stdin, keeps
+// only what the café shows (hooks/wire.ts says what that is) and posts it to
+// the page.
 //
 // It runs wherever the plugin's hooks run, the places the hooks module does
 // not reach included (a task in the Claude app). Where the module does run
@@ -20,7 +21,8 @@ import { readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { eventPostOf, inboxOf } from '../hooks/wire'
+import type { Inbox } from '../hooks/wire'
+import { eventPostOf, inboxOf, inboxOfFile, isWebSet } from '../hooks/wire'
 
 /** How long a report may take before it is given up on. */
 const TIMEOUT_MS = 3_000
@@ -90,11 +92,13 @@ function isDown(file: string, now: number): boolean {
 }
 
 async function main(): Promise<void> {
+  // The plugin's settings (web_url, web_key) when they name the page, or else web.json.
+  const url = process.env['CLAUDE_PLUGIN_OPTION_WEB_URL']
+  const key = process.env['CLAUDE_PLUGIN_OPTION_WEB_KEY']
   const root = process.env['CLAUDE_PLUGIN_ROOT']
-  if (root === undefined || root === '') return
-  const config: unknown = JSON.parse(readFileSync(join(root, 'web.json'), 'utf8'))
-  const fields = typeof config === 'object' && config !== null ? (config as Record<string, unknown>) : {}
-  const inbox = inboxOf(fields['url'], fields['key'])
+  let inbox: Inbox | undefined
+  if (isWebSet(url, key)) inbox = inboxOf(url, key)
+  else if (root !== undefined && root !== '') inbox = inboxOfFile(JSON.parse(readFileSync(join(root, 'web.json'), 'utf8')))
   if (inbox === undefined) return
 
   const now = Date.now()

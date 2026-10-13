@@ -7,6 +7,8 @@ import type { Engine } from 'claude-code/testing'
 import { COMMAND, HERE, NOW, SPAWN, START, TURN_END, inLoop, pane, seat, snap, stopOf, world } from './world'
 
 const SURFACES = ['terminal', 'desktop'] as const
+/** The café speaks English by default; these tests read its Traditional Chinese. */
+const ZH = { options: { language: 'zh-TW' } } as const
 
 /** `/cafe text`: this session's table as the list says it, whatever is mounted. */
 async function said($: Engine): Promise<string> {
@@ -20,7 +22,7 @@ async function shown(ui: { findAll: (query: { type: string }) => Promise<{ text:
 
 describe('the main loop', () => {
   for (const surface of SURFACES) {
-    test(`thinks, works and rests on the ${surface}`, async ($, on) => {
+    test(`thinks, works and rests on the ${surface}`, ZH, async ($, on) => {
       const w = world(on)
       await $.session.start(START)
       const ui = await $.ui.mount({ ...pane(), surface })
@@ -45,7 +47,7 @@ describe('the main loop', () => {
     })
   }
 
-  test('shows a command by its program alone when the model described none', async ($, on) => {
+  test('shows a command by its program alone when the model described none', ZH, async ($, on) => {
     const w = world(on)
     await $.session.start(START)
     w.hold()
@@ -60,7 +62,7 @@ describe('the main loop', () => {
     await call
   })
 
-  test('rests again after a call that ran with no turn running', async ($, on) => {
+  test('rests again after a call that ran with no turn running', ZH, async ($, on) => {
     // Another plugin's `$.tool.call` between turns: there is no turn to think in after it.
     const w = world(on)
     await $.session.start(START)
@@ -69,7 +71,7 @@ describe('the main loop', () => {
     expect(await said($)).toContain('○ main — 等你的指示')
   })
 
-  test('is marked failed when its turn ends on an error, until the next one', async ($, on) => {
+  test('is marked failed when its turn ends on an error, until the next one', ZH, async ($, on) => {
     world(on)
     await $.session.start(START)
     await $.turn.start({ text: 'go', turnId: 'turn-1' })
@@ -82,7 +84,7 @@ describe('the main loop', () => {
 
 describe('a subagent', () => {
   for (const surface of SURFACES) {
-    test(`sits down, works, finishes and leaves on the ${surface}`, async ($, on) => {
+    test(`sits down, works, finishes and leaves on the ${surface}`, ZH, async ($, on) => {
       const w = world(on)
       await $.session.start(START)
       const ui = await $.ui.mount({ ...pane(), surface })
@@ -117,7 +119,7 @@ describe('a subagent', () => {
     })
   }
 
-  test('sits under the agent that spawned it', async ($, on) => {
+  test('sits under the agent that spawned it', ZH, async ($, on) => {
     world(on)
     await $.session.start(START)
     await $.agent.spawn({ ...SPAWN, description: 'Plan the work', subagentType: 'Plan' })
@@ -130,7 +132,7 @@ describe('a subagent', () => {
     expect(text).toContain('  ↳ ◐ Explore 2「Read the code」')
   })
 
-  test('is not seated while only its tool calls have named it', async ($, on) => {
+  test('is not seated while only its tool calls have named it', ZH, async ($, on) => {
     // The engine's own forks (compaction, memory) run tools under ids nothing
     // ever spawned: they are not customers.
     world(on)
@@ -139,7 +141,7 @@ describe('a subagent', () => {
     expect((await said($)).split('\n')).toHaveLength(2)
   })
 
-  test('the events missed is seated from the list, and leaves when the list says so', async ($, on) => {
+  test('the events missed is seated from the list, and leaves when the list says so', ZH, async ($, on) => {
     const w = world(on)
     await $.session.start(START)
     w.agents = [{ id: 'bg-1', description: 'Watch the build', type: 'general-purpose', status: 'running' }]
@@ -152,7 +154,7 @@ describe('a subagent', () => {
     expect(await said($)).not.toContain('general-purpose')
   })
 
-  test('that finished is not seated again while the list still keeps it', async ($, on) => {
+  test('that finished is not seated again while the list still keeps it', ZH, async ($, on) => {
     // The list keeps a finished background agent for a while, as `idle` if it
     // has a name, as `waiting` if a shell of its own still runs.
     const w = world(on)
@@ -172,7 +174,7 @@ describe('a subagent', () => {
     expect((await said($)).split('\n')).toHaveLength(2)
   })
 
-  test('keeps going when a hook blocks its stop', async ($, on) => {
+  test('keeps going when a hook blocks its stop', ZH, async ($, on) => {
     const w = world(on)
     await $.session.start(START)
     await $.agent.spawn({ ...SPAWN, description: 'Find the hooks', subagentType: 'Explore' })
@@ -184,7 +186,7 @@ describe('a subagent', () => {
     expect(await said($)).toContain('✓ Explore')
   })
 
-  test('with a name or a task the pane could not show still leaves the pane standing', async ($, on) => {
+  test('with a name or a task the pane could not show still leaves the pane standing', ZH, async ($, on) => {
     // A control character in a text closes the pane: none may get that far.
     const w = world(on)
     await $.session.start(START)
@@ -220,7 +222,7 @@ describe('a subagent', () => {
     expect(stored.length).toBeLessThan(1_000)
   })
 
-  test('whose task holds what looks like a key is seated without it', async ($, on) => {
+  test('whose task holds what looks like a key is seated without it', ZH, async ($, on) => {
     const key = 'ghp_16C7e42F292c6912E7710c838347Ae178B4a'
     const w = world(on)
     await $.session.start(START)
@@ -242,7 +244,7 @@ describe('a subagent', () => {
     await ui.unmount()
   })
 
-  test('still running keeps its seat through a /clear, and the main loop starts over', async ($, on) => {
+  test('still running keeps its seat through a /clear, and the main loop starts over', ZH, async ($, on) => {
     // A clear ends the conversation, not the agents it had running.
     const w = world(on)
     await $.session.start(START)
@@ -274,7 +276,7 @@ describe('a subagent', () => {
 })
 
 describe('waiting for the person', () => {
-  test('a permission prompt marks the call it holds, and its end clears it', async ($, on) => {
+  test('a permission prompt marks the call it holds, and its end clears it', ZH, async ($, on) => {
     const w = world(on)
     await $.session.start(START)
     await $.turn.start({ text: 'clean up', turnId: 'turn-1' })
@@ -291,7 +293,7 @@ describe('waiting for the person', () => {
     expect(await said($)).toContain('◐ main — 思考中')
   })
 
-  test('a prompt a hook answers in the person place leaves nobody waiting', async ($, on) => {
+  test('a prompt a hook answers in the person place leaves nobody waiting', ZH, async ($, on) => {
     const w = world(on)
     await $.session.start(START)
     await $.turn.start({ text: 'build', turnId: 'turn-1' })
@@ -310,7 +312,7 @@ describe('waiting for the person', () => {
     await call
   })
 
-  test('of two calls of one tool, the prompt marks the one it is about', async ($, on) => {
+  test('of two calls of one tool, the prompt marks the one it is about', ZH, async ($, on) => {
     const w = world(on)
     await $.session.start(START)
     await $.turn.start({ text: 'fetch', turnId: 'turn-1' })
@@ -325,7 +327,7 @@ describe('waiting for the person', () => {
     await Promise.all([first, second])
   })
 
-  test('a held Agent call is held no longer once its agent has started', async ($, on) => {
+  test('a held Agent call is held no longer once its agent has started', ZH, async ($, on) => {
     // No event says a prompt was answered; an agent starting says so for its call,
     // which then goes on for as long as the agent runs.
     const w = world(on)
@@ -345,7 +347,7 @@ describe('waiting for the person', () => {
     await call
   })
 
-  test('a hold that was not about the Agent call stands when an agent starts', async ($, on) => {
+  test('a hold that was not about the Agent call stands when an agent starts', ZH, async ($, on) => {
     world(on)
     await $.session.start(START)
     await $.turn.start({ text: 'go', turnId: 'turn-1' })
@@ -355,7 +357,7 @@ describe('waiting for the person', () => {
     expect(await said($)).toContain('◆ main — 需要你看一下')
   })
 
-  test('a question is the person to answer', async ($, on) => {
+  test('a question is the person to answer', ZH, async ($, on) => {
     const w = world(on)
     await $.session.start(START)
     w.hold()
@@ -369,7 +371,7 @@ describe('waiting for the person', () => {
     await call
   })
 
-  test('a subagent that waits is the one marked', async ($, on) => {
+  test('a subagent that waits is the one marked', ZH, async ($, on) => {
     const w = world(on)
     await $.session.start(START)
     await $.agent.spawn({ ...SPAWN, description: 'Ship it', subagentType: 'release' })
@@ -392,7 +394,7 @@ describe('other sessions', () => {
   ])
 
   for (const surface of SURFACES) {
-    test(`sit at their own tables on the ${surface}`, async ($, on) => {
+    test(`sit at their own tables on the ${surface}`, ZH, async ($, on) => {
       const w = world(on, {
         'table:other-1': OTHER,
         // A session that stopped saying it is here is gone.
@@ -426,7 +428,7 @@ describe('other sessions', () => {
     })
   }
 
-  test('are counted, not told, where the café is text the model reads', async ($, on) => {
+  test('are counted, not told, where the café is text the model reads', ZH, async ($, on) => {
     world(on, { 'table:other-1': OTHER })
     await $.session.start(START)
     const text = await said($)
@@ -434,7 +436,7 @@ describe('other sessions', () => {
     expect(text).not.toMatch(/paper-notes|scout|arxiv/)
   })
 
-  test('are left out, and nothing is shared, with share_sessions off', { options: { share_sessions: false } }, async ($, on) => {
+  test('are left out, and nothing is shared, with share_sessions off', { options: { ...ZH.options, share_sessions: false } }, async ($, on) => {
     const w = world(on, { 'table:other-1': OTHER })
     await $.session.start(START)
     await $.tool.call({ tool: 'Read', file_path: '/repo/README.md' })
@@ -448,14 +450,14 @@ describe('other sessions', () => {
     expect(w.writes).toBe(0)
   })
 
-  test('a long-gone session is cleared out of the store', async ($, on) => {
+  test('a long-gone session is cleared out of the store', ZH, async ($, on) => {
     const w = world(on, { 'table:ancient': snap('ancient', 'old', [seat('main')], NOW - 2 * 60 * 60_000) })
     await $.session.start(START)
     await $.command.run({ ...COMMAND, args: '' })
     expect(w.store.has('table:ancient')).toBe(false)
   })
 
-  test('what the café cannot read is cleared out too, an hour after it first saw it', async ($, on) => {
+  test('what the café cannot read is cleared out too, an hour after it first saw it', ZH, async ($, on) => {
     const w = world(on, {
       'table:junk': { v: 9, something: 'else' },
       'table:ahead': snap('ahead', 'time-traveller', [seat('main')], NOW + 24 * 60 * 60_000),
@@ -470,7 +472,7 @@ describe('other sessions', () => {
     expect(w.store.has('table:ahead')).toBe(false)
   })
 
-  test('a session says it is still here while nothing changes', async ($, on) => {
+  test('a session says it is still here while nothing changes', ZH, async ($, on) => {
     const w = world(on)
     await $.session.start(START)
     await w.clock.advance(2_000)
@@ -480,7 +482,7 @@ describe('other sessions', () => {
     expect(later.at).toBeGreaterThan(first.at)
   })
 
-  test('a session that ended does not write its table back', async ($, on) => {
+  test('a session that ended does not write its table back', ZH, async ($, on) => {
     const w = world(on)
     await $.session.start(START)
     await $.turn.start({ text: 'go', turnId: 'turn-1' })
@@ -498,7 +500,7 @@ describe('other sessions', () => {
 })
 
 describe('when something fails beneath it', () => {
-  test('a store that refuses does not keep the café from opening, moving or letting go', async ($, on) => {
+  test('a store that refuses does not keep the café from opening, moving or letting go', ZH, async ($, on) => {
     const w = world(on)
     w.storeFails = true
     await $.session.start(START)
@@ -524,7 +526,7 @@ describe('when something fails beneath it', () => {
     await ui.unmount()
   })
 
-  test('a store that refuses does not keep a /clear from starting the main loop over', async ($, on) => {
+  test('a store that refuses does not keep a /clear from starting the main loop over', ZH, async ($, on) => {
     const w = world(on)
     await $.session.start(START)
     await $.turn.start({ text: 'go', turnId: 'turn-1' })
@@ -539,7 +541,7 @@ describe('when something fails beneath it', () => {
     await call
   })
 
-  test('a list of agents that cannot be read does not keep the café from opening', async ($, on) => {
+  test('a list of agents that cannot be read does not keep the café from opening', ZH, async ($, on) => {
     const w = world(on)
     w.agents = undefined
     await $.session.start(START)
@@ -550,7 +552,7 @@ describe('when something fails beneath it', () => {
 })
 
 describe('the picture', () => {
-  test('is drawn on the desktop and not on the terminal', async ($, on) => {
+  test('is drawn on the desktop and not on the terminal', ZH, async ($, on) => {
     world(on)
     await $.session.start(START)
     await $.agent.spawn({ ...SPAWN, description: 'Find <the> "hooks" & more', subagentType: 'Explore' })
@@ -572,7 +574,7 @@ describe('the picture', () => {
     await desktop.unmount()
   })
 
-  test('stays the same markup while only time passes', async ($, on) => {
+  test('stays the same markup while only time passes', ZH, async ($, on) => {
     const w = world(on)
     await $.session.start(START)
     await $.command.run({ ...COMMAND, args: '' })
@@ -590,7 +592,7 @@ describe('the picture', () => {
     await ui.unmount()
   })
 
-  test('is a plain still image with motion off', { options: { motion: false } }, async ($, on) => {
+  test('is a plain still image with motion off', { options: { ...ZH.options, motion: false } }, async ($, on) => {
     world(on)
     await $.session.start(START)
     const ui = await $.ui.mount({ ...pane(), surface: 'desktop' })
@@ -600,7 +602,7 @@ describe('the picture', () => {
     await ui.unmount()
   })
 
-  test('fits the markup limit however full the café is', async ($, on) => {
+  test('fits the markup limit however full the café is', ZH, async ($, on) => {
     const crowd = (id: string) =>
       snap(
         id,
@@ -625,7 +627,7 @@ describe('the picture', () => {
     await ui.unmount()
   })
 
-  test('still draws for a surface that hands over fewer props than this build knows', async ($, on) => {
+  test('still draws for a surface that hands over fewer props than this build knows', ZH, async ($, on) => {
     world(on)
     await $.session.start(START)
     // An older client: no `view`, no width.
@@ -636,7 +638,7 @@ describe('the picture', () => {
     await ui.unmount()
   })
 
-  test('marks the agent whose transcript is on screen', async ($, on) => {
+  test('marks the agent whose transcript is on screen', ZH, async ($, on) => {
     world(on)
     await $.session.start(START)
     await $.agent.spawn({ ...SPAWN, description: 'Find the hooks', subagentType: 'Explore' })
@@ -651,7 +653,7 @@ describe('the picture', () => {
 })
 
 describe('/cafe', () => {
-  test('answers as text where the surface places no pane', async ($, on) => {
+  test('answers as text where the surface places no pane', ZH, async ($, on) => {
     const w = world(on, {}, false)
     await $.session.start(START)
     const answer = await $.command.run({ ...COMMAND, args: '' })
@@ -660,7 +662,7 @@ describe('/cafe', () => {
     expect(answer.text).toContain('○ main — 等你的指示')
   })
 
-  test('answers as text where nothing draws at all', async ($, on) => {
+  test('answers as text where nothing draws at all', ZH, async ($, on) => {
     // A headless run places every pane and shows none.
     const w = world(on)
     w.surfaces = []
@@ -668,7 +670,7 @@ describe('/cafe', () => {
     expect((await $.command.run({ ...COMMAND, args: '' })).text).toContain('○ main — 等你的指示')
   })
 
-  test('close closes the pane and says nothing', async ($, on) => {
+  test('close closes the pane and says nothing', ZH, async ($, on) => {
     const w = world(on)
     await $.session.start(START)
     await $.command.run({ ...COMMAND, args: '' })
@@ -676,24 +678,93 @@ describe('/cafe', () => {
     expect(w.opens.close).toBe(1)
   })
 
-  test('says how it is used for a word it does not know', async ($, on) => {
+  test('says how it is used for a word it does not know', ZH, async ($, on) => {
     const w = world(on)
     await $.session.start(START)
     expect((await $.command.run({ ...COMMAND, args: 'espresso' })).text).toContain('/cafe text')
     expect(w.opens.open).toBe(0)
   })
 
-  test('speaks English when asked to', { options: { language: 'en' } }, async ($, on) => {
+  for (const [what, options] of [
+    ['by default', {}],
+    ['when asked to', { options: { language: 'en' } }],
+  ] as const) {
+    test(`speaks English ${what}`, options, async ($, on) => {
+      const w = world(on)
+      await $.session.start(START)
+      await $.agent.spawn({ ...SPAWN, description: 'Find the hooks', subagentType: 'Explore' })
+      w.hold()
+      const call = $.tool.call(inLoop('agent-1', { tool: 'Read', file_path: '/repo/hooks/scene.ts' }))
+      await w.clock.settle()
+      const text = await said($)
+      expect(text).toContain('○ main — Waiting on agents')
+      expect(text).toContain('● Explore “Find the hooks” — Reading hooks/scene.ts')
+      w.release()
+      await call
+    })
+  }
+})
+
+describe('the web page', () => {
+  /** The reports the café posts, and the files it looks for; `file` is web.json's text, if there is one. */
+  function web(on: Parameters<typeof world>[0], file?: string) {
+    const posts: { url: string; key: string; kind: string }[] = []
+    const looked: string[] = []
+    on('http.fetch', (_$, e) => {
+      const headers = (e.init?.headers ?? {}) as Record<string, string>
+      const body = JSON.parse(String(e.init?.body ?? '{}')) as { kind: string }
+      posts.push({ url: e.url, key: headers['authorization'] ?? '', kind: body.kind })
+      return { value: { status: 200, ok: true, headers: {}, body: '' } }
+    })
+    on('fs.exists', (_$, e) => {
+      looked.push(String(e.path))
+      return { value: file !== undefined }
+    })
+    on('fs.read', () => ({ value: file ?? '' }))
+    return { posts, looked }
+  }
+
+  const WEB_JSON = JSON.stringify({ url: 'https://file.example.com', key: 'from-file' })
+
+  test(
+    'is told at the address the settings give, and web.json is not read',
+    { options: { web_url: 'https://cafe.example.com', web_key: 'from-settings' } },
+    async ($, on) => {
+      const w = world(on)
+      const page = web(on, WEB_JSON)
+      await $.session.start(START)
+      await w.clock.advance(2_000)
+      expect(page.posts).toEqual([{ url: 'https://cafe.example.com/in', key: 'Bearer from-settings', kind: 'snap' }])
+      expect(page.looked).toEqual([])
+    },
+  )
+
+  test('is told at the address web.json gives when the settings are empty', async ($, on) => {
     const w = world(on)
+    const page = web(on, WEB_JSON)
     await $.session.start(START)
-    await $.agent.spawn({ ...SPAWN, description: 'Find the hooks', subagentType: 'Explore' })
-    w.hold()
-    const call = $.tool.call(inLoop('agent-1', { tool: 'Read', file_path: '/repo/hooks/scene.ts' }))
-    await w.clock.settle()
-    const text = await said($)
-    expect(text).toContain('○ main — Waiting on agents')
-    expect(text).toContain('● Explore “Find the hooks” — Reading hooks/scene.ts')
-    w.release()
-    await call
+    await w.clock.advance(2_000)
+    expect(page.posts).toEqual([{ url: 'https://file.example.com/in', key: 'Bearer from-file', kind: 'snap' }])
   })
+
+  test('is told nothing with neither', async ($, on) => {
+    const w = world(on)
+    const page = web(on)
+    await $.session.start(START)
+    await w.clock.advance(20_000)
+    expect(page.looked.some(path => path.endsWith('/web.json'))).toBe(true)
+    expect(page.posts).toEqual([])
+  })
+
+  test(
+    'is told nothing when the settings name no address a report may go to',
+    { options: { web_url: 'http://cafe.example.com', web_key: 'from-settings' } },
+    async ($, on) => {
+      const w = world(on)
+      const page = web(on, WEB_JSON)
+      await $.session.start(START)
+      await w.clock.advance(20_000)
+      expect(page.posts).toEqual([])
+    },
+  )
 })

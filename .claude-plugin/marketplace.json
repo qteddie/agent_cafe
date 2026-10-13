@@ -1,0 +1,18 @@
+{
+  "name": "agent-cafe",
+  "owner": {
+    "name": "qteddie",
+    "url": "https://github.com/qteddie"
+  },
+  "metadata": {
+    "description": "Agent Café: watch every agent of your Claude sessions at work, in a café."
+  },
+  "plugins": [
+    {
+      "name": "agent-cafe",
+      "source": "./",
+      "description": "Seats every agent of your Claude sessions, main loop and subagents alike, in a café and shows what each one is doing right now: in a pane (/cafe), or on your own web page, a 3D café where they walk around.",
+      "category": "productivity"
+    }
+  ]
+}

@@ -109,6 +109,7 @@ type Sample = { name: string; here: Snap; others: Snap[]; bodyColumns: number; l
 const SAMPLES: Sample[] = [
   { name: 'one-session', here: WAITING, others: [], bodyColumns: 70, language: 'zh-TW' },
   { name: 'several-sessions', here: BUSY, others: OTHERS, bodyColumns: 96, language: 'zh-TW' },
+  { name: 'several-sessions-en', here: BUSY, others: OTHERS, bodyColumns: 96, language: 'en' },
   { name: 'narrow-pane', here: BUSY, others: OTHERS.slice(0, 1), bodyColumns: 38, language: 'en' },
   { name: 'quiet', here: snap('s-q', 'my-app', [seat('main', 'main', 'idle', 'rest', '', '')]), others: [], bodyColumns: 70, language: 'zh-TW' },
   { name: 'every-state', here: GALLERY, others: [], bodyColumns: 110, language: 'en', cap: 20 },

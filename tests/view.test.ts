@@ -50,9 +50,10 @@ describe('what a seat says', () => {
     expect(age(65 * 60_000)).toBe('1h 05m')
   })
 
-  test('an unknown language falls back to Traditional Chinese', () => {
-    expect(wordsFor('fr').thinking).toBe('思考中')
-    expect(wordsFor(undefined).thinking).toBe('思考中')
+  test('an unknown language falls back to English', () => {
+    expect(wordsFor('zh-TW').thinking).toBe('思考中')
+    expect(wordsFor('fr').thinking).toBe(wordsFor('en').thinking)
+    expect(wordsFor(undefined).thinking).toBe(wordsFor('en').thinking)
   })
 })
 
