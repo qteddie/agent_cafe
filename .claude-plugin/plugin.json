@@ -1,17 +1,23 @@
 {
   "name": "agent-cafe",
   "displayName": "Agent Café",
-  "version": "0.2.0",
-  "description": "Seats every agent of your Claude sessions, main loop and subagents alike, in a pixel-art café and shows what each one is doing right now. Open it with /cafe, or on your own web page.",
+  "version": "0.3.0",
+  "description": "Seats every agent of your Claude sessions, main loop and subagents alike, in a café and shows what each one is doing right now: in a pane (/cafe), or on your own web page, a 3D café where they walk around, with cats, dogs and lo-fi music.",
   "author": {
-    "name": "Eddie"
+    "name": "Eddie",
+    "url": "https://github.com/qteddie"
   },
+  "homepage": "https://github.com/qteddie/agent_cafe",
+  "repository": "https://github.com/qteddie/agent_cafe",
+  "license": "MIT",
   "keywords": [
     "mod",
     "agents",
     "subagents",
     "visualization",
-    "pane"
+    "pane",
+    "dashboard",
+    "threejs"
   ],
   "userConfig": {
     "language": {
@@ -19,10 +25,10 @@
       "title": "Language",
       "description": "Language of the café's labels.",
       "options": [
-        "zh-TW",
-        "en"
+        "en",
+        "zh-TW"
       ],
-      "default": "zh-TW"
+      "default": "en"
     },
     "share_sessions": {
       "type": "boolean",
@@ -35,6 +41,18 @@
       "title": "Animation",
       "description": "Animate the café picture. Turn it off if the picture flickers or does not show on your machine: it is then drawn as a plain still image.",
       "default": true
+    },
+    "web_url": {
+      "type": "string",
+      "title": "Web page address",
+      "description": "Optional. The address of your own café web page (see the README), e.g. https://cafe.example.com, or http://localhost:8080 when it runs on this machine. Leave it empty to keep the café in the pane only.",
+      "default": ""
+    },
+    "web_key": {
+      "type": "string",
+      "title": "Web page reporting key",
+      "description": "Optional. The page's reporting key (CAFE_INGEST_KEY in web/.env). It can only send reports, not look at the café.",
+      "default": ""
     }
   }
 }

@@ -229,6 +229,22 @@ export function inboxOf(base: unknown, key: unknown): Inbox | undefined {
   return { url: new URL('in', url).toString(), key: secret }
 }
 
+/**
+ * True when the plugin's settings name the web page (`web_url`, `web_key`):
+ * either one filled in is enough, and web.json is then not read.
+ */
+export function isWebSet(url: unknown, key: unknown): boolean {
+  const isFilled = (value: unknown) => typeof value === 'string' && value.trim() !== ''
+  return isFilled(url) || isFilled(key)
+}
+
+/** The inbox web.json names, as `{ "url": "https://…", "key": "…" }`. */
+export function inboxOfFile(config: unknown): Inbox | undefined {
+  if (typeof config !== 'object' || config === null) return undefined
+  const fields = config as Readonly<Record<string, unknown>>
+  return inboxOf(fields['url'], fields['key'])
+}
+
 /** The app a hook runs in, from the environment Claude Code gives it. */
 export function appOf(env: Readonly<Record<string, string | undefined>>): App {
   const entry = env['CLAUDE_CODE_ENTRYPOINT'] ?? ''

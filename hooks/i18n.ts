@@ -219,9 +219,9 @@ const EN: Words = {
     `A café with ${seats} ${seats === 1 ? 'agent' : 'agents'} at ${tables} ${tables === 1 ? 'table' : 'tables'}.`,
 }
 
-/** The words for a language; Traditional Chinese for one the café does not have. */
+/** The words for a language; English for one the café does not have. */
 export function wordsFor(language: unknown): Words {
-  return language === 'en' ? EN : ZH
+  return language === 'zh-TW' ? ZH : EN
 }
 
 /** What a seat's state takes to say: the fields of a seat the sentence reads. */

@@ -25,7 +25,7 @@ services:
     environment:
       CAFE_INGEST_KEY: ${CAFE_INGEST_KEY:?set CAFE_INGEST_KEY in web/.env}
       CAFE_VIEW_KEY: ${CAFE_VIEW_KEY:?set CAFE_VIEW_KEY in web/.env}
-      TZ: ${TZ:-Asia/Taipei}
+      TZ: ${TZ:-UTC}
       CAFE_DEBUG: ${CAFE_DEBUG:-}
     ports:
       # This machine only: the world comes in through the tunnel, which reaches
