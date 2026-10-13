@@ -12,12 +12,17 @@ import {
   SLOTS,
   SLOT_ORDER,
   SPOTS,
+  SIDE_COLUMNS,
   TABLE_SEATS,
   chairOf,
   columnsFor,
+  columnsOf,
   decorSpots,
   isInside,
+  pickSlot,
   rugRect,
+  sideSeat,
+  slotCenter,
   slotRect,
   tableRect,
 } from '../web/cafe3d/layout'
@@ -34,9 +39,54 @@ function furnished(): NavGrid {
 }
 
 describe('the room', () => {
-  test('gives out every slot once, the row by the counter first', () => {
+  test('likes every slot, the middle of the room best', () => {
     expect([...SLOT_ORDER].sort()).toEqual([...Array(SLOTS).keys()])
-    expect(SLOT_ORDER.slice(0, 3).every(slot => slot < 3)).toBe(true)
+    expect(SLOT_ORDER[0]).toBe(4)
+  })
+
+  test('stands each new table as far from the others as a free slot allows', () => {
+    expect(pickSlot([])).toBe(4)
+    // The next ones go to the corners, not beside the first.
+    const second = pickSlot([4]) as number
+    expect([0, 2, 6, 8]).toContain(second)
+    const taken = [4, second]
+    while (taken.length < SLOTS) {
+      const next = pickSlot(taken) as number
+      expect(taken).not.toContain(next)
+      // No free slot is further from the tables standing than the one picked.
+      const gap = (slot: number) =>
+        Math.min(...taken.map(other => Math.hypot(slotCenter(slot).x - slotCenter(other).x, slotCenter(slot).z - slotCenter(other).z)))
+      for (let slot = 0; slot < SLOTS; slot += 1) if (!taken.includes(slot)) expect(gap(slot)).toBeLessThanOrEqual(gap(next) + 1e-6)
+      taken.push(next)
+    }
+    expect(pickSlot(taken)).toBeUndefined()
+    // Five tables: the middle and the four corners.
+    const five = [4]
+    while (five.length < 5) five.push(pickSlot(five) as number)
+    expect([...five].sort()).toEqual([0, 2, 4, 6, 8])
+  })
+
+  test('seats subagents in a checkerboard: across the table and a chair along, before anyone sits beside anyone', () => {
+    const first = [...Array(SIDE_COLUMNS).keys()].map(side => sideSeat(side))
+    expect(first.map(seat => seat.column)).toEqual([0, 1, 2, 3, 4])
+    // Every chair of the first round crosses the table from the one before.
+    first.slice(1).forEach((seat, index) => expect(seat.isFar).not.toBe(first[index]?.isFar))
+    // The second round takes the chairs across from the first.
+    for (let side = 0; side < SIDE_COLUMNS; side += 1) {
+      const later = sideSeat(side + SIDE_COLUMNS)
+      expect(later.column).toBe(side)
+      expect(later.isFar).toBe(!first[side]?.isFar)
+    }
+    // No two of the first round sit side by side, nor face to face.
+    const slot = 4
+    const seated = [1, 2, 3, 4, 5].map(index => chairOf(slot, index))
+    for (let one = 0; one < seated.length; one += 1) {
+      for (let other = one + 1; other < seated.length; other += 1) {
+        const a = seated[one] as Point
+        const b = seated[other] as Point
+        expect(Math.hypot(a.x - b.x, a.z - b.z)).toBeGreaterThan(1.5)
+      }
+    }
   })
 
   test('seats every chair beside its table, on its rug, inside its slot, apart from the others', () => {
@@ -68,12 +118,17 @@ describe('the room', () => {
     expect(large.x1 + CLEARANCE).toBeLessThan(chairOf(5, 0).x - 0.25)
   })
 
-  test('counts chairs along each side from the seats a table has, the head among them', () => {
+  test('makes a table as long as its furthest chair taken needs', () => {
     expect(columnsFor(1)).toBe(1)
-    expect(columnsFor(3)).toBe(1)
-    expect(columnsFor(4)).toBe(2)
-    expect(columnsFor(TABLE_SEATS)).toBe(6)
-    expect(columnsFor(99)).toBe(6)
+    expect(columnsFor(2)).toBe(1)
+    expect(columnsFor(3)).toBe(2)
+    expect(columnsFor(6)).toBe(5)
+    expect(columnsFor(TABLE_SEATS)).toBe(SIDE_COLUMNS)
+    expect(columnsFor(99)).toBe(SIDE_COLUMNS)
+    // A table whose far chairs emptied is no longer than the ones still taken need.
+    expect(columnsOf([0, 1, 2])).toBe(2)
+    expect(columnsOf([0, 7])).toBe(2)
+    expect(columnsOf([])).toBe(1)
   })
 
   test('leaves every place to stand at on open floor', () => {

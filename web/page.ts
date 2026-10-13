@@ -61,6 +61,8 @@ function wordsForClient(words: Words, page: PageWords): Record<string, unknown> 
     asking: page.asking,
     resetView: page.resetView,
     stageHint: page.stageHint,
+    throwBall: page.throwBall,
+    callCat: page.callCat,
     tally: page.lang === 'en' ? ['{b} busy', '{a} waiting for you', '{i} resting'] : ['{b} 位在忙', '{a} 位等你', '{i} 位休息中'],
   }
 }
