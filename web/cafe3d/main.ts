@@ -37,6 +37,8 @@ import {
 } from './layout'
 import { NavGrid } from './nav'
 import type { PetWorld, Species } from './pets'
+import type { Music } from './music'
+import { createMusic } from './music'
 import { Ball, Pet } from './pets'
 import { Room } from './room'
 import type { TagPhase } from './tags'
@@ -920,11 +922,16 @@ function canDraw(): boolean {
 
 declare global {
   interface Window {
-    AgentCafe3D?: { mount: (host: HTMLElement, options: StageOptions) => Stage | undefined }
+    AgentCafe3D?: {
+      mount: (host: HTMLElement, options: StageOptions) => Stage | undefined
+      /** The café's music, made by the browser; undefined where it cannot play sound. */
+      music: () => Music | undefined
+    }
   }
 }
 
 window.AgentCafe3D = {
+  music: createMusic,
   mount(host, options) {
     if (!canDraw()) return undefined
     try {

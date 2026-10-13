@@ -36,6 +36,11 @@ export type PageWords = {
   /** What a pet picked out in the café can be asked to do: a dog fetches, a cat may come. */
   throwBall: string
   callCat: string
+  /** The café's music: the switch, what it does each way, and its volume. */
+  music: string
+  musicOn: string
+  musicOff: string
+  volume: string
   /** The café's cats and dogs: the controls that add one and let one go home. */
   pets: string
   cats: string
@@ -79,6 +84,10 @@ const ZH: PageWords = {
   stageHint: '拖曳旋轉、滾輪或兩指縮放・點人看他在做什麼・點寵物再點地板，跟牠玩',
   noStage: '這個瀏覽器畫不出立體的咖啡廳',
   noStageHint: '需要 WebGL：換一個瀏覽器，或在設定裡打開硬體加速。',
+  music: '音樂',
+  musicOn: '放點悠閒的咖啡廳音樂',
+  musicOff: '關掉音樂',
+  volume: '音量',
   throwBall: '點地板丟球給牠',
   callCat: '點地板叫牠過來',
   pets: '貓狗',
@@ -122,6 +131,10 @@ const EN: PageWords = {
   stageHint: 'Drag to turn, scroll or pinch to zoom · click a person to see what they are doing · click a pet, then the floor, to play',
   noStage: 'This browser cannot draw the café in 3D',
   noStageHint: 'It needs WebGL: try another browser, or turn on hardware acceleration in its settings.',
+  music: 'Music',
+  musicOn: 'Play some chill café music',
+  musicOff: 'Stop the music',
+  volume: 'Volume',
   throwBall: 'Click the floor to throw a ball',
   callCat: 'Click the floor to call it over',
   pets: 'Pets',

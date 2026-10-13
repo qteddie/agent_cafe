@@ -197,13 +197,23 @@ body.cafe .card {
   border-color: var(--chalk-dim);
 }
 
-/* The café's cats and dogs, bottom left: how many, and one more or one fewer. */
-.pets {
+/* Bottom left: the café's cats and dogs (how many, one more, one fewer) and its music. */
+.dock {
   position: fixed;
   left: 12px;
   bottom: 12px;
   z-index: 7000;
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100vw - 150px);
+}
+
+.pets,
+.music {
+  display: flex;
+  align-items: center;
   gap: 16px;
   padding: 4px 6px 4px 14px;
   border-radius: 999px;
@@ -211,6 +221,52 @@ body.cafe .card {
   box-shadow: 0 8px 20px -10px rgba(0, 0, 0, 0.7);
   color: var(--chalk);
   font: 600 0.85rem/1.5 var(--display);
+}
+
+.music {
+  gap: 10px;
+  padding: 4px 6px;
+}
+
+.music-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 12px 0 10px;
+  border: 1px solid var(--board-line);
+  border-radius: 999px;
+  background: none;
+  color: var(--chalk-dim);
+  font: inherit;
+  cursor: pointer;
+}
+
+.music-toggle:hover {
+  color: var(--chalk);
+  border-color: var(--chalk-dim);
+}
+
+.music-toggle[aria-pressed="true"] {
+  color: var(--board-deep);
+  background: var(--work);
+  border-color: var(--work);
+}
+
+.music-toggle[aria-pressed="true"] .music-note {
+  animation: bob 1.6s ease-in-out infinite;
+}
+
+@keyframes bob {
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+.volume {
+  width: 84px;
+  margin: 0 6px 0 0;
+  accent-color: var(--work);
 }
 
 .pet-kind {
@@ -627,6 +683,9 @@ body.cafe .card {
     gap: 10px;
     padding-left: 12px;
   }
+  .volume {
+    display: none;
+  }
 }
 
 @media (max-width: 900px) {
@@ -638,6 +697,9 @@ body.cafe .card {
 @media (prefers-reduced-motion: reduce) {
   .stage-hint {
     transition: none;
+  }
+  .music-toggle[aria-pressed="true"] .music-note {
+    animation: none;
   }
 }
 

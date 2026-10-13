@@ -16,6 +16,8 @@
   const noStage = byId('nostage')
   const card = byId('card')
   const petBar = byId('pets')
+  const musicButton = byId('music')
+  const volumeInput = byId('volume')
   const MARKS = { think: '◐', work: '●', ask: '◆', idle: '○', done: '✓', fail: '✗' }
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
 
@@ -47,6 +49,56 @@
   }
 
   let pets = savedPets()
+
+  // The café's music: made by the browser, so it plays only once the person asks (or, if they
+  // left it on last time, from their first click on the page: browsers wait for one).
+  const MUSIC_KEY = 'agent-cafe-music'
+  let music = null
+
+  function savedMusic() {
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(MUSIC_KEY) || 'null')
+      if (saved !== null && typeof saved === 'object') {
+        const level = Number(saved.volume)
+        return { on: saved.on === true, volume: Number.isFinite(level) ? Math.max(0, Math.min(1, level)) : 0.6 }
+      }
+    } catch {
+      // Nothing kept, or nothing readable: quiet, at the usual volume.
+    }
+    return { on: false, volume: 0.6 }
+  }
+
+  let musicChoice = savedMusic()
+
+  function keepMusic() {
+    try {
+      window.localStorage.setItem(MUSIC_KEY, JSON.stringify(musicChoice))
+    } catch {
+      // Not remembered, then.
+    }
+  }
+
+  function showMusic() {
+    const isOn = music !== null && music.isPlaying
+    musicButton.setAttribute('aria-pressed', String(isOn))
+    musicButton.title = isOn ? words.musicOff : words.musicOn
+    volumeInput.hidden = !isOn
+    volumeInput.value = String(musicChoice.volume)
+  }
+
+  function playMusic(isOn) {
+    if (music === null) music = (window.AgentCafe3D && window.AgentCafe3D.music()) || null
+    if (music === null) {
+      musicButton.hidden = true
+      return
+    }
+    music.setVolume(musicChoice.volume)
+    musicChoice = { ...musicChoice, on: isOn }
+    keepMusic()
+    if (isOn) music.start().then(showMusic, () => showMusic())
+    else music.stop()
+    showMusic()
+  }
 
   function showPets() {
     for (const count of petBar.querySelectorAll('.pet-count')) count.textContent = String(pets[count.dataset.kind])
@@ -249,6 +301,24 @@
   petBar.hidden = stage === null
   if (stage !== null) stage.setPets(pets)
   showPets()
+  musicButton.addEventListener('click', () => playMusic(!(music !== null && music.isPlaying)))
+  volumeInput.addEventListener('input', () => {
+    musicChoice = { ...musicChoice, volume: Number(volumeInput.value) }
+    keepMusic()
+    if (music !== null) music.setVolume(musicChoice.volume)
+  })
+  if (musicChoice.on) {
+    // Left on last time: it comes back with the first click or key on the page (but not the switch, which decides by itself).
+    const resume = event => {
+      if (event.target instanceof Element && event.target.closest('#music')) return
+      document.removeEventListener('pointerdown', resume, true)
+      document.removeEventListener('keydown', resume, true)
+      if (music === null || !music.isPlaying) playMusic(true)
+    }
+    document.addEventListener('pointerdown', resume, true)
+    document.addEventListener('keydown', resume, true)
+  }
+  showMusic()
   petBar.addEventListener('click', event => {
     const button = event.target instanceof Element ? event.target.closest('.pet-step') : null
     if (button !== null && !button.disabled) stepPets(button.dataset.kind, Number(button.dataset.step))

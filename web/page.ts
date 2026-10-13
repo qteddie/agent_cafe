@@ -63,14 +63,16 @@ function wordsForClient(words: Words, page: PageWords): Record<string, unknown> 
     stageHint: page.stageHint,
     throwBall: page.throwBall,
     callCat: page.callCat,
+    musicOn: page.musicOn,
+    musicOff: page.musicOff,
     tally: page.lang === 'en' ? ['{b} busy', '{a} waiting for you', '{i} resting'] : ['{b} 位在忙', '{a} 位等你', '{i} 位休息中'],
   }
 }
 
 /**
  * The café: the room in 3D, filling the window, and over it no more than the
- * tally, whether it is live, the way out, the café's cats and dogs, and the
- * card of a guest clicked.
+ * tally, whether it is live, the way out, the café's cats and dogs, its music,
+ * and the card of a guest clicked.
  * /cafe3d.js draws the room; app.js brings it what /events says.
  */
 export function cafePage(words: Words, page: PageWords): string {
@@ -89,9 +91,16 @@ export function cafePage(words: Words, page: PageWords): string {
     `<button type="submit" class="out">${escapeHtml(page.signOut)}</button>` +
     '</form>' +
     '</header>' +
+    '<div class="dock">' +
     `<div class="pets" id="pets" role="group" aria-label="${escapeHtml(page.pets)}">` +
     petControl('cat', page.cats, page.fewerCats, page.moreCats) +
     petControl('dog', page.dogs, page.fewerDogs, page.moreDogs) +
+    '</div>' +
+    `<div class="music" role="group" aria-label="${escapeHtml(page.music)}">` +
+    `<button type="button" class="music-toggle" id="music" aria-pressed="false" title="${escapeHtml(page.musicOn)}">` +
+    `<span class="music-note" aria-hidden="true">♪</span> ${escapeHtml(page.music)}</button>` +
+    `<input type="range" class="volume" id="volume" min="0" max="1" step="0.05" value="0.6" aria-label="${escapeHtml(page.volume)}" hidden>` +
+    '</div>' +
     '</div>' +
     '<aside class="card" id="card" hidden></aside>' +
     '<div class="notice" id="empty" hidden>' +
