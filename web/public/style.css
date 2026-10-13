@@ -1,5 +1,5 @@
-/* Agent Café, the web page: the café's chalkboard wall, the window onto the
-   room, and an order ticket for each session. */
+/* Agent Café, the web page: the café in 3D, filling the window, the few
+   words laid over it, and the door before it. */
 
 :root {
   --board: #26312c;
@@ -69,76 +69,84 @@ a {
 }
 
 /* ------------------------------------------------------------------------ */
-/* The chalkboard: the name of the place and the day's tally. */
+/* The café: the room in 3D, filling the window. */
 
-.board {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-areas:
-    "sign tools"
-    "tally tally";
-  gap: 6px 24px;
-  max-width: 1440px;
-  margin: 0 auto;
-  padding: 28px 32px 8px;
+body.cafe {
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--board-deep);
 }
 
-.sign {
-  grid-area: sign;
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
-.board h1 {
-  margin: 0;
-  font: 700 clamp(2rem, 4.2vw, 2.9rem) / 1.05 var(--display);
-  letter-spacing: 0.01em;
-  color: var(--chalk);
-  text-shadow: 0 0 1px rgba(241, 239, 230, 0.35);
+.stage {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
 }
 
-.tagline {
-  margin: 6px 0 0;
+.stage-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Over the room, top right: the tally, whether it is live, the way out. */
+.hud {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 7000;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px 16px;
+  max-width: calc(100vw - 24px);
+  padding: 6px 8px 6px 16px;
+  border-radius: 18px;
+  background: rgba(28, 37, 33, 0.82);
+  box-shadow: 0 8px 20px -10px rgba(0, 0, 0, 0.7);
   color: var(--chalk-dim);
-  font-size: 1rem;
+  font-size: 0.85rem;
 }
 
 .tally {
-  grid-area: tally;
-  margin: 14px 0 0;
-  font: 600 1.15rem/1.4 var(--display);
-  color: var(--chalk);
-  min-height: 1.4em;
+  display: flex;
+  gap: 14px;
+  margin: 0;
+  font: 600 0.92rem/1.4 var(--display);
 }
 
-.tally .count {
-  font-size: 1.45rem;
-  margin-right: 0.15em;
+.chip .count {
+  margin-right: 0.3em;
+  font-size: 1.05rem;
+  font-weight: 700;
 }
 
-.tally .sep {
-  display: inline-block;
-  width: 1.1em;
-}
-
-.tally [data-phase="work"] {
+.chip[data-phase="work"] {
   color: var(--work);
 }
 
-.tally [data-phase="ask"] {
+.chip[data-phase="ask"] {
   color: var(--ask);
 }
 
-.tally [data-phase="idle"] {
+.chip[data-phase="idle"] {
   color: var(--idle);
 }
 
-.tools {
-  grid-area: tools;
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  padding-top: 10px;
-  font-size: 0.9rem;
-  color: var(--chalk-dim);
+.live {
+  white-space: nowrap;
 }
 
 .live::before {
@@ -161,144 +169,137 @@ a {
   background: var(--ask);
 }
 
-.lang {
-  text-decoration: none;
-  border-bottom: 1px solid var(--board-line);
-  padding-bottom: 1px;
-}
-
-.lang:hover {
-  color: var(--chalk);
-  border-bottom-color: var(--chalk-dim);
-}
-
-/* ------------------------------------------------------------------------ */
-/* The room: the window with the picture, and the tickets. */
-
-.room {
-  max-width: 1440px;
-  margin: 0 auto;
-  padding: 18px 32px 40px;
-  display: grid;
-  gap: 32px;
-}
-
-.window {
+.hud form {
   margin: 0;
-  justify-self: center;
-  width: 100%;
-  max-width: 1100px;
-  padding: 10px;
-  background: linear-gradient(var(--wood-light), var(--wood));
-  border-radius: 6px;
-  box-shadow:
-    0 0 0 1px rgba(0, 0, 0, 0.35),
-    0 24px 40px -24px rgba(0, 0, 0, 0.8);
 }
 
-.window img {
-  display: block;
-  width: 100%;
-  height: auto;
-  max-height: 74vh;
-  object-fit: contain;
-  background: #c79a6c;
-  border-radius: 2px;
+.out {
+  font: inherit;
+  color: var(--chalk-dim);
+  background: none;
+  border: 1px solid var(--board-line);
+  border-radius: 999px;
+  padding: 2px 12px;
+  cursor: pointer;
 }
 
-.empty {
-  display: grid;
+.out:hover {
+  color: var(--chalk);
+  border-color: var(--chalk-dim);
+}
+
+/* The café's cats and dogs, bottom left: how many, and one more or one fewer. */
+.pets {
+  position: fixed;
+  left: 12px;
+  bottom: 12px;
+  z-index: 7000;
+  display: flex;
+  gap: 16px;
+  padding: 4px 6px 4px 14px;
+  border-radius: 999px;
+  background: rgba(28, 37, 33, 0.82);
+  box-shadow: 0 8px 20px -10px rgba(0, 0, 0, 0.7);
+  color: var(--chalk);
+  font: 600 0.85rem/1.5 var(--display);
+}
+
+.pet-kind {
+  display: inline-flex;
+  align-items: center;
   gap: 6px;
-  place-items: center;
-  padding: 56px 20px;
-  background: #c79a6c;
-  border-radius: 2px;
-  color: var(--ink);
+}
+
+.pet-name {
+  color: var(--chalk-dim);
+  margin-right: 2px;
+}
+
+.pet-count {
+  min-width: 1.1em;
   text-align: center;
 }
 
-.empty strong {
-  font: 700 1.25rem/1.3 var(--display);
+.pet-step {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--board-line);
+  border-radius: 50%;
+  background: none;
+  color: var(--chalk);
+  font: 600 0.95rem/1 var(--text);
+  cursor: pointer;
 }
 
-.empty span {
+.pet-step:hover:not(:disabled) {
+  border-color: var(--chalk-dim);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.pet-step:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* Nobody here yet, or no 3D to be had: a note over the room. */
+.notice {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  z-index: 6500;
+  transform: translate(-50%, -50%);
+  display: grid;
+  gap: 6px;
+  width: min(86vw, 400px);
+  padding: 18px 22px;
+  border-radius: 6px;
+  background: rgba(247, 240, 225, 0.94);
+  box-shadow: 0 12px 26px -12px rgba(0, 0, 0, 0.7);
+  color: var(--ink);
+  text-align: center;
+  pointer-events: none;
+}
+
+.notice strong {
+  font: 700 1.2rem/1.3 var(--display);
+}
+
+.notice span {
   color: #4b3b2f;
 }
 
-/* The tickets, clipped up in a row and wrapping. */
-.rail {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr));
-  gap: 30px 22px;
-  align-items: start;
-  padding-top: 8px;
-}
-
-.ticket {
-  position: relative;
-  padding: 20px 18px 14px;
+/* The card of the guest clicked: an order ticket, top left. */
+.card {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 7000;
+  width: min(340px, calc(100vw - 24px));
+  padding: 16px 16px 12px;
   background: var(--paper);
   color: var(--ink);
-  border-radius: 1px 1px 5px 5px;
+  border-radius: 2px 2px 6px 6px;
+  box-shadow: 0 14px 24px -12px rgba(0, 0, 0, 0.8);
+}
+
+.card[data-phase="ask"] {
   box-shadow:
-    0 1px 0 var(--paper-edge),
-    0 14px 22px -14px rgba(0, 0, 0, 0.75);
-  transform: rotate(var(--tilt, 0deg));
+    0 0 0 3px var(--ask),
+    0 14px 24px -12px rgba(0, 0, 0, 0.8);
 }
 
-/* The torn top edge of a ticket off the pad. */
-.ticket::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: -5px;
-  height: 6px;
-  background: radial-gradient(circle at 4px 0, transparent 3.5px, var(--paper) 4px) 0 0 / 8px 6px repeat-x;
-}
-
-/* The clip it hangs by. */
-.ticket::after {
-  content: "";
-  position: absolute;
-  top: -12px;
-  left: 50%;
-  width: 34px;
-  height: 14px;
-  margin-left: -17px;
-  border-radius: 3px;
-  background: linear-gradient(#cfd6dc, #8a939b);
-  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.35);
-}
-
-/* A ticket with someone waiting on the person: a flag on its corner. */
-.flag {
-  position: absolute;
-  top: -10px;
-  right: 14px;
-  padding: 2px 9px 3px;
-  background: var(--ask);
-  color: var(--ink);
-  font: 700 0.78rem/1.3 var(--display);
-  border-radius: 2px 2px 2px 8px;
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
-}
-
-.ticket-head {
+.card-head {
   display: flex;
-  flex-wrap: wrap;
   align-items: baseline;
-  gap: 4px 10px;
-  padding-bottom: 10px;
-  margin-bottom: 8px;
-  border-bottom: 1px dashed #cdbfa5;
+  gap: 8px;
 }
 
-.ticket-title {
-  margin: 0;
+.card-title {
   flex: 1 1 auto;
   min-width: 0;
-  font: 700 1.08rem/1.3 var(--display);
+  margin: 0;
+  font: 700 1.02rem/1.3 var(--display);
   overflow-wrap: anywhere;
 }
 
@@ -307,236 +308,299 @@ a {
   border: 1.5px solid currentColor;
   border-radius: 4px;
   color: var(--ink-dim);
-  font-size: 0.74rem;
+  font-size: 0.72rem;
   font-weight: 700;
   line-height: 1.55;
   white-space: nowrap;
 }
 
-.app[data-app="claude"] {
-  color: #9a4a2c;
+.card-close {
+  align-self: start;
+  margin: -6px -6px 0 0;
+  padding: 0 6px;
+  border: 0;
+  background: none;
+  color: var(--ink-dim);
+  font: 400 1.4rem/1 var(--text);
+  cursor: pointer;
 }
 
-.meta {
+.card-close:hover {
+  color: var(--ink);
+}
+
+.card-meta {
   display: flex;
-  flex-wrap: wrap;
   gap: 4px 14px;
-  width: 100%;
+  margin: 2px 0 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed #cdbfa5;
   color: var(--ink-dim);
   font-size: 0.8rem;
 }
 
-.meta a {
+.card-meta a {
   text-decoration-color: #b9aa8d;
   text-underline-offset: 2px;
 }
 
-.meta a:hover {
-  color: var(--ink);
-}
-
-.seats {
-  list-style: none;
+.card-who,
+.card-says,
+.card-when {
   margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 8px;
-}
-
-/* branch | mark | who | when
-           mark | says says */
-.seat {
-  display: grid;
-  grid-template-columns: auto 1.2em minmax(0, 1fr) auto;
-  column-gap: 5px;
-  align-items: baseline;
-  padding-left: calc(var(--depth, 0) * 18px);
-}
-
-.seat .branch {
-  grid-column: 1;
-  grid-row: 1;
-  color: #b2a48b;
-}
-
-.seat .mark {
-  grid-column: 2;
-  grid-row: 1 / span 2;
-  font-size: 0.95rem;
-  text-align: center;
-}
-
-.who {
-  grid-column: 3;
-  min-width: 0;
   overflow-wrap: anywhere;
 }
 
-.who .name {
-  font-weight: 700;
+.card-who .mark {
+  margin-right: 6px;
 }
 
-.who .task {
+.card-who .task {
   color: var(--ink-dim);
 }
 
-.when {
-  grid-column: 4;
-  color: var(--ink-dim);
-  font-size: 0.8rem;
-  white-space: nowrap;
-  text-align: right;
+.card-says {
+  margin-top: 2px;
 }
 
-.says {
-  grid-column: 3 / span 2;
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.seat[data-phase="ask"] .says {
+.card-says[data-phase="ask"] {
   justify-self: start;
-  padding: 0 4px;
-  margin-left: -4px;
   background: linear-gradient(transparent 12%, rgba(255, 216, 77, 0.75) 12%, rgba(255, 216, 77, 0.75) 92%, transparent 92%);
   font-weight: 600;
 }
 
-.seat[data-phase="done"] .says,
-.seat[data-phase="idle"] .says {
-  color: var(--ink-dim);
-}
-
-.seat[data-phase="fail"] .says {
+.card-says[data-phase="fail"] {
   color: var(--fail-ink);
 }
 
-.note {
-  margin: 10px 0 0;
+.card-when {
+  margin-top: 6px;
   color: var(--ink-dim);
-  font-size: 0.78rem;
+  font-size: 0.8rem;
 }
 
-/* The marks: chalk on the board, ink on a ticket. */
 .mark[data-phase="think"] {
-  color: var(--think);
+  color: var(--think-ink);
 }
 .mark[data-phase="work"],
 .mark[data-phase="done"] {
-  color: var(--work);
-}
-.mark[data-phase="ask"] {
-  color: var(--ask);
-}
-.mark[data-phase="idle"] {
-  color: var(--idle);
-}
-.mark[data-phase="fail"] {
-  color: var(--fail);
-}
-.ticket .mark[data-phase="think"] {
-  color: var(--think-ink);
-}
-.ticket .mark[data-phase="work"],
-.ticket .mark[data-phase="done"] {
   color: var(--work-ink);
 }
-.ticket .mark[data-phase="ask"] {
+.mark[data-phase="ask"] {
   color: var(--ask-ink);
 }
-.ticket .mark[data-phase="idle"] {
+.mark[data-phase="idle"] {
   color: var(--idle-ink);
 }
-.ticket .mark[data-phase="fail"] {
+.mark[data-phase="fail"] {
   color: var(--fail-ink);
 }
 
 /* ------------------------------------------------------------------------ */
-/* The foot of the board: what the marks mean, and the way out. */
+/* The words over the room: a tag over each guest, a placard by each table. */
 
-.foot {
-  max-width: 1440px;
-  margin: 0 auto;
-  padding: 0 32px 36px;
+.tags {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.tag {
+  position: absolute;
+  left: 0;
+  top: 0;
+  translate: -50% -100%;
+  display: grid;
+  justify-items: center;
+  max-width: 168px;
+  padding: 1px 7px 2px;
+  background: rgba(255, 248, 234, 0.92);
+  color: var(--ink);
+  border-radius: 5px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.28);
+  font: 400 10.5px/1.3 var(--text);
+  white-space: nowrap;
+  will-change: transform;
+}
+
+.tag .tag-name,
+.tag .tag-says {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tag .tag-name {
+  font-weight: 700;
+}
+
+.tag .tag-says {
+  color: #5b4636;
+  font-size: 10px;
+}
+
+.tag[data-phase="ask"] {
+  background: var(--ask);
+}
+
+.tag[data-phase="ask"] .tag-says {
+  color: #8a2d1c;
+  font-weight: 700;
+}
+
+.tag[data-phase="fail"] .tag-says {
+  color: var(--fail-ink);
+}
+
+.tag[data-phase="done"] .tag-says,
+.tag[data-phase="idle"] .tag-says {
+  color: var(--ink-dim);
+}
+
+.tag.is-marked {
+  outline: 2px solid #d97757;
+  z-index: 5000 !important;
+}
+
+/* Small guests on the screen: their names alone, but for those who need you;
+   tiny ones, a tag only for those who need you, or the one picked out. */
+.tags[data-size="compact"] .tag .tag-says {
+  display: none;
+}
+
+.tags[data-size="compact"] .tag[data-phase="ask"] .tag-says,
+.tags[data-size="compact"] .tag.is-marked .tag-says {
+  display: block;
+}
+
+.tags[data-size="tiny"] .tag:not([data-phase="ask"]):not(.is-marked) {
+  display: none;
+}
+
+.tags[data-size="tiny"] .placard {
+  font-size: 10px;
+}
+
+.tags[data-size="tiny"] .placard .tag-says {
+  display: none;
+}
+
+.placard {
+  position: absolute;
+  left: 0;
+  top: 0;
+  translate: 0 3px;
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px 24px;
-  color: var(--chalk-dim);
-  font-size: 0.88rem;
+  align-items: baseline;
+  gap: 6px;
+  max-width: 230px;
+  padding: 1px 8px 2px 7px;
+  background: rgba(107, 74, 50, 0.94);
+  color: var(--chalk);
+  border-left: 3px solid #8fb39b;
+  border-radius: 2px 4px 4px 2px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+  font: 700 11px/1.4 var(--display);
+  white-space: nowrap;
 }
 
-.legend {
+.placard .tag-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.placard .tag-says {
+  flex: none;
+  color: #e6d6bd;
+  font: 400 10px/1.4 var(--text);
+}
+
+.placard[data-phase="ask"] {
+  border-left-color: var(--ask);
+}
+
+.stage-reset,
+.stage-hint {
+  position: absolute;
+  bottom: 12px;
+  z-index: 6000;
   margin: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 0;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font: 600 12px/1.4 var(--text);
 }
 
-.legend .mark {
-  margin: 0 5px 0 16px;
-}
-
-.legend .mark:first-child {
-  margin-left: 0;
-}
-
-.foot form {
-  margin: 0;
-}
-
-.out {
-  font: inherit;
-  color: var(--chalk-dim);
-  background: none;
+.stage-reset {
+  right: 12px;
   border: 0;
-  padding: 0;
-  border-bottom: 1px solid var(--board-line);
+  background: rgba(28, 37, 33, 0.82);
+  color: var(--chalk);
   cursor: pointer;
 }
 
-.out:hover {
-  color: var(--chalk);
+.stage-reset:hover {
+  background: rgba(28, 37, 33, 0.96);
 }
 
-/* Wide screens: the window stays in view beside the tickets. */
-@media (min-width: 1180px) {
-  .room {
-    grid-template-columns: minmax(0, 1.35fr) minmax(360px, 1fr);
-    align-items: start;
-  }
-  .window {
-    position: sticky;
-    top: 20px;
-    justify-self: stretch;
-  }
-  .rail {
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
-  }
+.stage-hint {
+  left: 50%;
+  translate: -50% 0;
+  max-width: calc(100% - 560px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: rgba(28, 37, 33, 0.72);
+  color: var(--chalk-dim);
+  font-weight: 400;
+  pointer-events: none;
+  transition: opacity 0.6s;
 }
 
+.stage-hint.is-gone {
+  opacity: 0;
+}
+
+/* Phones: the tally in numbers, the live dot alone, the card along the bottom. */
 @media (max-width: 640px) {
-  .board {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas:
-      "sign"
-      "tools"
-      "tally";
-    padding: 20px 16px 4px;
+  .hud {
+    gap: 6px 12px;
+    padding: 5px 6px 5px 12px;
   }
-  .tools {
-    padding-top: 2px;
+  .chip .word {
+    display: none;
   }
-  .room {
-    padding: 14px 16px 32px;
-    gap: 26px;
+  .live {
+    font-size: 0;
   }
-  .window {
-    padding: 6px;
+  .live::before {
+    margin-right: 0;
   }
-  .foot {
-    padding: 0 16px 28px;
+  .card {
+    top: auto;
+    bottom: 54px;
+    left: 10px;
+    right: 10px;
+    width: auto;
+  }
+  .stage-hint {
+    display: none;
+  }
+  .pets {
+    gap: 10px;
+    padding-left: 12px;
+  }
+}
+
+@media (max-width: 900px) {
+  .stage-hint {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage-hint {
+    transition: none;
   }
 }
 
@@ -613,3 +677,4 @@ a {
   font-weight: 600;
   font-size: 0.92rem;
 }
+

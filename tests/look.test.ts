@@ -38,9 +38,17 @@ describe('the view', () => {
     const view = viewOf(hall, NOW, { lang: 'zh-TW', columns: 6 })
     expect(view).toMatchObject({ busy: 2, asking: 0, idle: 0 })
     expect(view.tables[0]?.lines).toEqual([
-      { key: 's1/main', depth: 0, phase: 'work', label: 'main', task: '', says: '交辦 Find the hooks', since: NOW - 4_000, calls: '' },
-      { key: 's1/a1', depth: 1, phase: 'work', label: 'Explore', task: '「Find the hooks」', says: '搜尋 TODO', since: NOW - 2_000, calls: '1 次工具' },
+      { key: 's1/main', depth: 0, kind: 'main', phase: 'work', act: 'delegate', tool: 'Agent', label: 'main', task: '', says: '交辦 Find the hooks', since: NOW - 4_000, calls: '' },
+      { key: 's1/a1', depth: 1, kind: 'sub', phase: 'work', act: 'search', tool: 'Grep', label: 'Explore', task: '「Find the hooks」', says: '搜尋 TODO', since: NOW - 2_000, calls: '1 次工具' },
     ])
+  })
+
+  test('for a page that draws the café in 3D, leaves the picture out and keeps the rest', () => {
+    const hall = createHall()
+    receive(hall, event('s1', 'cli', 'demo', { e: 'prompt', pid: 'p' }), NOW)
+    const view = viewOf(hall, NOW, { lang: 'en', columns: 6, hasPicture: false })
+    expect(view).toMatchObject({ svg: '', sig: '', busy: 1 })
+    expect(view.tables[0]?.lines[0]).toMatchObject({ key: 's1/main', kind: 'main', phase: 'think', act: 'think' })
   })
 
   test('changes its picture only when the café changes', () => {
@@ -89,11 +97,18 @@ describe('the view', () => {
 
 describe('the documents', () => {
   test('the café page carries its words as data, closed to markup', () => {
-    const html = cafePage(wordsFor('zh-TW'), pageWordsFor('zh-TW'))
+    const html = cafePage(wordsFor('en'), pageWordsFor('en'))
     expect(html).toContain('<script type="application/json" id="words">')
-    expect(html).toContain('<script src="/app.js" defer></script>')
-    // Only the two script elements: the page's code and its words.
-    expect(html.match(/<script/g)).toHaveLength(2)
+    expect(html).toContain('<script src="/cafe3d.js" defer></script><script src="/app.js" defer></script>')
+    // Only the three script elements: the 3D café, the page's code, and its words.
+    expect(html.match(/<script/g)).toHaveLength(3)
+  })
+
+  test('the page is in English unless Traditional Chinese is asked for by name', () => {
+    expect(pageWordsFor(undefined).signOut).toBe('Sign out')
+    expect(pageWordsFor('fr').signOut).toBe('Sign out')
+    expect(pageWordsFor('zh-TW').signOut).toBe('登出')
+    expect(cafePage(wordsFor('en'), pageWordsFor('en'))).toContain('<html lang="en">')
   })
 
   test('the door says what went wrong', () => {

@@ -15,10 +15,11 @@
 // sessions next report.
 
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { createServer } from 'node:http'
 import { fileURLToPath } from 'node:url'
+import { gzipSync } from 'node:zlib'
 
 import { wordsFor } from '../hooks/i18n'
 import type { Post } from '../hooks/wire'
@@ -68,10 +69,26 @@ if (INGEST_KEY.length < MIN_KEY || VIEW_KEY.length < MIN_KEY || INGEST_KEY === V
   process.exit(1)
 }
 
-const ASSETS: ReadonlyMap<string, { type: string; body: string }> = new Map([
-  ['/style.css', { type: 'text/css; charset=utf-8', body: readFileSync(fileURLToPath(new URL('public/style.css', import.meta.url)), 'utf8') }],
-  ['/app.js', { type: 'text/javascript; charset=utf-8', body: readFileSync(fileURLToPath(new URL('public/app.js', import.meta.url)), 'utf8') }],
-  ['/icon.svg', { type: 'image/svg+xml', body: ICON }],
+type Asset = { type: string; body: string; zipped: Buffer; tag: string }
+
+function asset(type: string, body: string): Asset {
+  return { type, body, zipped: gzipSync(body), tag: `"${createHash('sha256').update(body).digest('base64url').slice(0, 22)}"` }
+}
+
+function publicFile(name: string): string | undefined {
+  const path = fileURLToPath(new URL(`public/${name}`, import.meta.url))
+  return existsSync(path) ? readFileSync(path, 'utf8') : undefined
+}
+
+/** The 3D café, built from cafe3d/ (bun run build:3d). */
+const STAGE = publicFile('cafe3d.js')
+if (STAGE === undefined) console.error('Agent Café: web/public/cafe3d.js is missing: build it with `bun run build:3d` in web/.')
+
+const ASSETS: ReadonlyMap<string, Asset> = new Map([
+  ['/style.css', asset('text/css; charset=utf-8', publicFile('style.css') ?? '')],
+  ['/app.js', asset('text/javascript; charset=utf-8', publicFile('app.js') ?? '')],
+  ['/icon.svg', asset('image/svg+xml', ICON)],
+  ...(STAGE === undefined ? [] : ([['/cafe3d.js', asset('text/javascript; charset=utf-8', STAGE)]] as const)),
 ])
 
 const SECURITY_HEADERS: Readonly<Record<string, string>> = {
@@ -89,7 +106,7 @@ const hall = createHall()
 let version = 0
 const views = new Map<string, { version: number; view: View; body: string }>()
 
-type Watcher = { res: ServerResponse; lang: string; columns: number; hasMotion: boolean; sent: string }
+type Watcher = { res: ServerResponse; lang: string; columns: number; hasMotion: boolean; hasPicture: boolean; sent: string }
 const watchers = new Set<Watcher>()
 const misses = new Map<string, { count: number; since: number }>()
 /** Every wrong password of the last while, the addresses taken together. */
@@ -137,9 +154,10 @@ function hasPass(req: IncomingMessage): boolean {
   return age >= -60_000 && age < PASS_DAYS * 86_400_000
 }
 
+/** The page's language: English, unless Traditional Chinese is asked for (?lang=zh-TW, remembered). */
 function langOf(req: IncomingMessage, url: URL): string {
   const asked = url.searchParams.get('lang') ?? cookiesOf(req).get(LANG)
-  return asked === 'en' ? 'en' : 'zh-TW'
+  return asked === 'zh-TW' ? 'zh-TW' : 'en'
 }
 
 /** True when the page is reached over this machine's own address: cookies then go without `Secure`. */
@@ -198,6 +216,29 @@ function send(
   res.end(body)
 }
 
+/** A file of the page: checked again each time (no-cache), sent again only when it changed, zipped when the browser takes it. */
+function sendAsset(req: IncomingMessage, res: ServerResponse, file: Asset): void {
+  const headers: Record<string, string> = {
+    ...SECURITY_HEADERS,
+    'content-type': file.type,
+    'cache-control': 'no-cache',
+    etag: file.tag,
+    vary: 'accept-encoding',
+  }
+  if (req.headers['if-none-match'] === file.tag) {
+    res.writeHead(304, headers)
+    res.end()
+    return
+  }
+  if (/\bgzip\b/.test(String(req.headers['accept-encoding'] ?? ''))) {
+    res.writeHead(200, { ...headers, 'content-encoding': 'gzip' })
+    res.end(file.zipped)
+    return
+  }
+  res.writeHead(200, headers)
+  res.end(file.body)
+}
+
 function readBody(req: IncomingMessage, max: number): Promise<string> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = []
@@ -216,12 +257,12 @@ function readBody(req: IncomingMessage, max: number): Promise<string> {
   })
 }
 
-/** The view for one kind of page, made once per change of the café. */
-function viewFor(lang: string, columns: number, hasMotion: boolean): { view: View; body: string } {
-  const key = `${lang}|${columns}|${hasMotion ? 1 : 0}`
+/** The view for one kind of page, made once per change of the café. A page that draws it in 3D is sent no picture. */
+function viewFor(lang: string, columns: number, hasMotion: boolean, hasPicture: boolean): { view: View; body: string } {
+  const key = hasPicture ? `${lang}|${columns}|${hasMotion ? 1 : 0}` : `${lang}|3d`
   const kept = views.get(key)
   if (kept !== undefined && kept.version === version) return kept
-  const view = viewOf(hall, Date.now(), { lang, columns, timeZone: TIME_ZONE, hasMotion })
+  const view = viewOf(hall, Date.now(), { lang, columns, timeZone: TIME_ZONE, hasMotion, hasPicture })
   // What a page is sent again only when this changed: the clock alone is no news.
   const body = JSON.stringify({ ...view, at: 0 })
   const made = { version, view, body }
@@ -230,7 +271,7 @@ function viewFor(lang: string, columns: number, hasMotion: boolean): { view: Vie
 }
 
 function tell(watcher: Watcher): void {
-  const { view, body } = viewFor(watcher.lang, watcher.columns, watcher.hasMotion)
+  const { view, body } = viewFor(watcher.lang, watcher.columns, watcher.hasMotion, watcher.hasPicture)
   if (body === watcher.sent) return
   watcher.sent = body
   // The clock as it is sent, not as the view was made: the page counts ages from it.
@@ -298,7 +339,7 @@ async function takeReport(req: IncomingMessage, res: ServerResponse): Promise<vo
 async function login(req: IncomingMessage, res: ServerResponse): Promise<void> {
   // The whole form first: every count below is read and written after it, in one go.
   const fields = new URLSearchParams(await readBody(req, 4096).catch(() => ''))
-  const lang = fields.get('lang') === 'en' ? 'en' : 'zh-TW'
+  const lang = fields.get('lang') === 'zh-TW' ? 'zh-TW' : 'en'
   const page = pageWordsFor(lang)
   if (isCrossSite(req)) {
     send(res, 403, 'text/plain; charset=utf-8', 'not from here')
@@ -351,9 +392,10 @@ function watch(req: IncomingMessage, res: ServerResponse, url: URL): void {
   res.write('retry: 3000\n\n')
   const watcher: Watcher = {
     res,
-    lang: url.searchParams.get('lang') === 'en' ? 'en' : 'zh-TW',
+    lang: url.searchParams.get('lang') === 'zh-TW' ? 'zh-TW' : 'en',
     columns: columnsFor(url.searchParams.get('cols')),
     hasMotion: url.searchParams.get('motion') !== '0',
+    hasPicture: url.searchParams.get('pic') !== '0',
     sent: '',
   }
   watchers.add(watcher)
@@ -368,10 +410,8 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
 
   if (method === 'POST' && pathname === '/in') return takeReport(req, res)
   if (method === 'GET' && pathname === '/healthz') return send(res, 200, 'text/plain; charset=utf-8', 'ok')
-  const asset = ASSETS.get(pathname)
-  if (method === 'GET' && asset !== undefined) {
-    return send(res, 200, asset.type, asset.body, { 'cache-control': 'no-cache' })
-  }
+  const file = ASSETS.get(pathname)
+  if (method === 'GET' && file !== undefined) return sendAsset(req, res, file)
   if (method === 'POST' && pathname === '/login') return login(req, res)
   if (method === 'POST' && pathname === '/logout') {
     if (isCrossSite(req)) return send(res, 403, 'text/plain; charset=utf-8', 'not from here')
@@ -392,8 +432,13 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
   if (method === 'GET' && (pathname === '/events' || pathname === '/api/view')) {
     if (!hasPass(req)) return send(res, 401, 'text/plain; charset=utf-8', 'sign in first')
     if (pathname === '/events') return watch(req, res, url)
-    const lang = url.searchParams.get('lang') === 'en' ? 'en' : 'zh-TW'
-    const { view } = viewFor(lang, columnsFor(url.searchParams.get('cols')), url.searchParams.get('motion') !== '0')
+    const lang = url.searchParams.get('lang') === 'zh-TW' ? 'zh-TW' : 'en'
+    const { view } = viewFor(
+      lang,
+      columnsFor(url.searchParams.get('cols')),
+      url.searchParams.get('motion') !== '0',
+      url.searchParams.get('pic') !== '0',
+    )
     return send(res, 200, 'application/json; charset=utf-8', JSON.stringify({ ...view, at: Date.now() }))
   }
   send(res, 404, 'text/plain; charset=utf-8', 'not here')
