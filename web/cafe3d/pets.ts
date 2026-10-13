@@ -56,7 +56,7 @@ const SAY_MS = 2_200
 
 const RING = new THREE.RingGeometry(0.3, 0.37, 28)
 const RING_INK = new THREE.MeshBasicMaterial({ color: '#e98fb0', transparent: true, opacity: 0.9, depthWrite: false })
-const BALL_RADIUS = 0.065
+const BALL_RADIUS = 0.075
 const BALL_SHAPE = new THREE.IcosahedronGeometry(BALL_RADIUS, 1)
 /** How long a ball flies, and how long it lies about once a dog has brought it back. */
 const FLIGHT_MS = 550
@@ -219,7 +219,8 @@ export class Pet {
     this.root.add(this.dream)
     this.ring = new THREE.Mesh(RING, RING_INK)
     this.ring.rotation.x = -Math.PI / 2
-    this.ring.position.y = 0.012
+    // At one height in the room whatever the pet's size: clear of the rugs and the door mat.
+    this.ring.position.y = 0.024 / this.size
     this.ring.visible = false
     this.root.add(this.ring)
     this.moodUntil = now + 5_000 + this.random() * 20_000
@@ -315,6 +316,12 @@ export class Pet {
     return this.presence > 0.5
   }
 
+  /** The box around its body as it stands now, turned and sized: what pointing at it hits. */
+  hitBox(target: THREE.Box3): THREE.Box3 {
+    this.root.updateMatrixWorld(true)
+    return target.setFromObject(this.body).expandByScalar(0.04)
+  }
+
   setRing(isOn: boolean): void {
     this.ring.visible = isOn
   }
@@ -329,12 +336,12 @@ export class Pet {
     if (this.isLeaving) return
     const { now } = world
     this.say(SAYS[this.species][Math.floor(this.random() * SAYS[this.species].length)] ?? '', now)
-    if (this.errand !== 'none') return
+    // On an errand, or still on its way in at the door: it answers, and goes on.
+    if (this.errand !== 'none' || this.x > DOOR.inside.x) return
     this.path = []
     this.mood = 'sit'
     this.moodUntil = now + 6_000 + this.random() * 4_000
     this.excitedUntil = now + 1_600
-    this.petter = ''
   }
 
   /** Called over to a point of the floor. A cat comes when it pleases: false when it does not. */
@@ -507,7 +514,8 @@ export class Pet {
     const isExcited = now < this.excitedUntil
     if (this.mood !== 'leave' && this.path.length === 0 && !isExcited) {
       if (this.errand !== 'none') this.arrive(world)
-      else if (motion > 0 && this.petter === '' && now >= this.moodUntil) this.choose(world)
+      // With less motion nobody walks, but a cat sat up still lies back down where it is.
+      else if ((motion > 0 || (this.species === 'cat' && this.mood === 'sit')) && this.petter === '' && now >= this.moodUntil) this.choose(world)
     }
 
     const isWalking = this.path.length > 0 && !isExcited

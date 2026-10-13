@@ -503,8 +503,13 @@ body.cafe .card {
   display: block;
 }
 
-.tags[data-size="tiny"] .tag:not([data-phase="ask"]):not(.is-marked) {
+.tags[data-size="tiny"] .tag:not(.pet-tag):not([data-phase="ask"]):not(.is-marked) {
   display: none;
+}
+
+/* A pet's tag is only there when it is pointed at, picked out or talking: shown whole at any size. */
+.tags[data-size="compact"] .pet-tag .tag-says {
+  display: block;
 }
 
 .tags[data-size="tiny"] .placard {
@@ -575,10 +580,13 @@ body.cafe .card {
 .stage-hint {
   left: 50%;
   translate: -50% 0;
+  /* One line where it fits, two where the screen is narrower: never cut short. */
+  width: max-content;
   max-width: calc(100% - 560px);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  text-wrap: balance;
+  text-align: center;
+  border-radius: 14px;
   background: rgba(28, 37, 33, 0.72);
   color: var(--chalk-dim);
   font-weight: 400;
