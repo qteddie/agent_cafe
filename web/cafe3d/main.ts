@@ -925,7 +925,7 @@ declare global {
     AgentCafe3D?: {
       mount: (host: HTMLElement, options: StageOptions) => Stage | undefined
       /** The café's music, made by the browser; undefined where it cannot play sound. */
-      music: () => Music | undefined
+      music: (onChange?: () => void) => Music | undefined
     }
   }
 }

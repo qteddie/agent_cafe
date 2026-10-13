@@ -13,7 +13,7 @@ There are two ways to watch:
 
 ![The web page: a full-screen 3D café with five sessions at work](docs/web.png)
 
-> A screenshot of the web page in Chromium (software WebGL). The sessions are a script that simulates five sessions and a dozen agents changing what they do at random, so they change faster than real ones would.
+> A screenshot of the web page in Chromium (software WebGL). The sessions come from a script (not included) that simulates five sessions and a dozen agents changing what they do at random, so they change faster than real ones would.
 
 Each agent is a little person. The bubble over their head is what they are doing; their name tag gives the details. In the pane, tags that do not fit are cut short and the full text is in the list below the picture. On the web page, click a person to open their card. The bubbles mean the same in both:
 
@@ -49,7 +49,7 @@ or from a terminal:
 claude plugin install agent-cafe --marketplace qteddie/agent_cafe
 ```
 
-(On a Claude Code older than v2.1.275, add the marketplace first: `/plugin marketplace add qteddie/agent_cafe`, then `/plugin install agent-cafe@agent-cafe`.)
+(If your Claude Code does not know `--marketplace`, add the marketplace first: `/plugin marketplace add qteddie/agent_cafe`, then `/plugin install agent-cafe@agent-cafe`.)
 
 Start a new session and type `/cafe`.
 
@@ -58,8 +58,8 @@ Installing may ask for the plugin's settings. They are all optional: leave `web_
 ### Try it without installing
 
 ```bash
-git clone https://github.com/qteddie/agent_cafe ~/Projects/agent-cafe
-claude --plugin-dir ~/Projects/agent-cafe
+git clone https://github.com/qteddie/agent_cafe ~/agent_cafe
+claude --plugin-dir ~/agent_cafe
 ```
 
 This loads it for that one session. The desktop app cannot pass flags, so to load a clone there, set `CLAUDE_CODE_PLUGIN_DIRS` in `~/.claude/settings.json` (merge it with what you have) and open a new **Local** session in the Code tab:
@@ -67,10 +67,12 @@ This loads it for that one session. The desktop app cannot pass flags, so to loa
 ```json
 {
   "env": {
-    "CLAUDE_CODE_PLUGIN_DIRS": "~/Projects/agent-cafe"
+    "CLAUDE_CODE_PLUGIN_DIRS": "~/agent_cafe"
   }
 }
 ```
+
+Loaded this way, the plugin's id is `agent-cafe@inline` rather than `agent-cafe@agent-cafe`: use that in the `claude plugin configure` commands below.
 
 ### Is it loaded?
 
@@ -177,17 +179,18 @@ When both kinds of report arrive for one session (the hooks also report when `no
 
 The server is in `web/`. It runs in Docker, and needs nothing but Docker on a machine that stays on (your laptop with Docker Desktop is fine while you use it).
 
-1. Make two different keys:
+1. Make two different keys, 16 characters or more each (the server does not start otherwise; `docker compose logs cafe` says why):
 
    ```bash
    openssl rand -hex 24   # the reporting key: CAFE_INGEST_KEY
    openssl rand -hex 24   # the page's password: CAFE_VIEW_KEY
    ```
 
-2. Fill them in and start it, in the repository's `web/` folder (`compose.yaml` is there):
+2. Fill them in and start it, in the repository's `web/` folder (`compose.yaml` is there; skip the clone if you have one already):
 
    ```bash
-   git clone https://github.com/qteddie/agent_cafe && cd agent_cafe/web
+   git clone https://github.com/qteddie/agent_cafe ~/agent_cafe
+   cd ~/agent_cafe/web
    cp .env.example .env      # put the two keys in, and your time zone (TZ)
    docker compose up -d --build
    ```
@@ -205,7 +208,7 @@ That is enough when Claude Code runs on the same machine. To watch from your pho
    - `http`, not `https`: the server speaks no https of its own, and an https service URL gets a 502. Your domain is still https: Cloudflare takes care of that part.
 4. Open `https://cafe.example.com`.
 
-Without Cloudflare, put your own reverse proxy (Caddy, nginx) with https in front of `127.0.0.1:8080`. Without Docker, the server runs on [Bun](https://bun.sh): `CAFE_INGEST_KEY=… CAFE_VIEW_KEY=… bun web/server.ts`.
+Without Cloudflare, put your own reverse proxy (Caddy, nginx) with https in front of `127.0.0.1:8080`. Without Docker, the server runs on [Bun](https://bun.sh), from the clone: `HOST=127.0.0.1 CAFE_INGEST_KEY=… CAFE_VIEW_KEY=… bun web/server.ts` (without `HOST`, it listens on every network the machine is on).
 
 ### 2. Point your sessions at it
 
@@ -224,20 +227,20 @@ When you load the plugin from a clone (`--plugin-dir`), you can instead put a `w
 { "url": "https://cafe.example.com", "key": "<your CAFE_INGEST_KEY>" }
 ```
 
-The settings win when both are there.
+Once `web_url` is set, `web.json` is not read.
 
 ### 3. Claude app tasks (optional)
 
-Claude app tasks run in Anthropic's cloud, where neither your settings nor your folders are. Two things get them reporting:
+Claude app tasks run in Anthropic's cloud, where neither your settings nor your folders are, and where your `localhost` is out of reach: this needs the page on a public https address (the tunnel above, or your own proxy). Two things get them reporting:
 
-1. **Upload the plugin to your Claude account**, with the page's address and key inside. Write the `web.json` above in a clone, then:
+1. **Upload the plugin to your Claude account**, with the page's address and key inside. Write the `web.json` above in a clone, then (it needs `zip`):
 
    ```bash
    sh tools/pack.sh          # makes dist/agent-cafe.zip, web.json included
    ```
 
    In the Claude app, **Customize → Plugins → Add → Upload plugin**, and upload the zip. New tasks then carry it. The zip holds your reporting key: upload it to your own account only, and share it with nobody.
-2. **Let tasks reach your domain.** A task's network allows only some sites (GitHub, npm and the like) by default; others get a 403. In Claude's **Settings → Capabilities**, allow your domain in code execution's network access (add it to the allowed domains, or, if there is only a switch, allow all domains). On a Team or Enterprise plan, an admin changes this in the organization's settings. It applies to **new** tasks. To check, ask Claude in a new task to run `curl -sI https://cafe.example.com/healthz`: `200` means it gets through, `403` that it is still blocked.
+2. **Let tasks reach your domain.** A task's network allows only some sites (GitHub, npm and the like) by default; others get a 403. In Claude's **Settings → Capabilities**, allow your domain in code execution's network access (add it to the allowed domains, or, if there is only a switch, allow all domains). On a Team or Enterprise plan, an admin changes this in the organization's settings. It applies to **new** tasks. To check, ask Claude in a new task to run `curl -sS https://cafe.example.com/healthz`: `ok` means it gets through; a 403 (`CONNECT tunnel failed, response 403`) means it is still blocked.
 
 A task has no folder to name its table after, so it shows as `Claude · 14:05` (the app, and when it sat down), and its card's `Open` link goes to the task.
 
@@ -264,7 +267,7 @@ The server keeps all of this in memory only: a restart empties it, and each sess
 
 - Two separate keys: the reporting key (in the plugin's settings, in `web.json`, and in the uploaded zip, where Claude can read it) can only **send** reports. Looking at the page takes the other key, the password.
 - `web_key` is not a secret setting: Claude Code keeps it in plain text in `~/.claude/settings.json`. That is why it can only write to the café, never read it.
-- Wrong passwords: after 8 from one address in 15 minutes, or 40 from everyone together, the page stops taking sign-ins for a while (browsers already signed in carry on).
+- Wrong passwords: after 8 from one address in 15 minutes, or 40 from everyone together, the page stops taking sign-ins for a while (browsers already signed in carry on). The server tells addresses apart behind the Cloudflare tunnel only; behind your own proxy, every visitor counts as one address.
 - Everything a session reports goes on the page as text, never as markup (`textContent` for tags and cards; the blackboard is drawn on a canvas). The page has a strict Content Security Policy, and three.js comes bundled in `/cafe3d.js` from your own server: no CDN.
 - `compose.yaml` opens the port on `127.0.0.1` only: the world gets in through the tunnel.
 
@@ -293,11 +296,11 @@ The server keeps all of this in memory only: a restart empties it, and each sess
 Change them in Claude Code with `/plugin configure agent-cafe@agent-cafe`, or from a terminal:
 
 ```bash
-claude plugin configure agent-cafe@agent-cafe            # shows them
-echo '{"language": "zh-TW", "motion": false}' | claude plugin configure agent-cafe@agent-cafe --values-stdin
+claude plugin configure agent-cafe@agent-cafe            # lists them, and which are set
+echo '{"language": "zh-TW", "motion": "false"}' | claude plugin configure agent-cafe@agent-cafe --values-stdin
 ```
 
-They take effect in new sessions. The web page's server has its own settings, in `web/.env` (see `web/.env.example`).
+Values go in as strings, `"false"` included. They take effect in new sessions. The web page's server has its own settings, in `web/.env` (see `web/.env.example`).
 
 ## What it shows and stores
 
@@ -339,7 +342,7 @@ Tested:
 - `claude plugin validate --strict` passes, `claude plugin test` passes in Claude Code's own test harness, and the 3D café type-checks with `tsc`. The event shapes the web page reads were recorded from real sessions (`tests/runs.ts`).
 - Real Claude Code sessions (Linux, a separate settings folder, the model replaced by a local script, so no real model or usage): headless (`claude -p`) and the interactive terminal; the main agent thinking and calling tools, foreground and background subagents, subagents of subagents, failures, permission prompts, stopping a background agent, `/clear`, hot reload, two sessions at once.
 - The desktop app's Code tab draws the pane's picture, list and legend.
-- The web page's server under Bun, fed by real sessions in all three ways (the plugin's tables, hooks only, both together); sign-in limits, forged sign-in cookies and cross-site forms are refused; the page reconnects by itself after a server restart. The 3D café in Chromium (software WebGL) at desktop (1440×900) and phone (390×844) sizes, with simulated sessions, the pets and the music.
+- The web page's server under Bun, fed by real sessions in all three ways (the plugin's tables, hooks only, both together); sign-in limits, forged sign-in cookies and cross-site forms are refused; the page reconnects by itself after a server restart. The 3D café in Chromium (software WebGL) at desktop (1440×900) and phone (390×844) sizes, with simulated sessions, the pets and the music (on a touch screen too).
 - `web/Dockerfile` and `compose.yaml` built and run under Docker Engine 29.
 
 Not tested yet: the whole path from a Claude app task to a real domain; the real `oven/bun` and `cloudflare/cloudflared` images and the Cloudflare part (the Docker tests used stand-ins); the reporter on macOS; the 3D café on a real GPU, in Safari and on real phones; teammates, MCP elicitations, plan approvals and AskUserQuestion beyond unit tests; a real model, which does more varied things than a script.
@@ -349,7 +352,7 @@ Not tested yet: the whole path from a Claude app task to a real domain; the real
 ```bash
 claude plugin validate .      # what Claude Code reads from the plugin
 claude plugin test            # the tests in tests/, no session or sign-in needed
-npx tsc -p .                  # type check (load the plugin once first, which writes its types)
+npx -p typescript tsc -p .    # type check (load the plugin once first, which writes its types)
 
 # The web page (needs Bun)
 CAFE_INGEST_KEY=$(openssl rand -hex 24) CAFE_VIEW_KEY=$(openssl rand -hex 24) bun web/server.ts

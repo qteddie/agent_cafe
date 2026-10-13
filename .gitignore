@@ -8,7 +8,7 @@ preview/
 
 # The web page's address and reporting key: a secret, kept out of version control.
 web.json
-# Plugin zips made by tools/pack.ts.
+# Plugin zips made by tools/pack.sh.
 dist/
 
 # web/.env holds the web page's keys.

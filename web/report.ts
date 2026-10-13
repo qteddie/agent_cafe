@@ -92,12 +92,12 @@ function isDown(file: string, now: number): boolean {
 }
 
 async function main(): Promise<void> {
-  // The plugin's settings (web_url, web_key) when they name the page, or else web.json.
+  // The plugin's settings (web_url, web_key) once web_url is filled in, or else web.json.
   const url = process.env['CLAUDE_PLUGIN_OPTION_WEB_URL']
   const key = process.env['CLAUDE_PLUGIN_OPTION_WEB_KEY']
   const root = process.env['CLAUDE_PLUGIN_ROOT']
   let inbox: Inbox | undefined
-  if (isWebSet(url, key)) inbox = inboxOf(url, key)
+  if (isWebSet(url)) inbox = inboxOf(url, key)
   else if (root !== undefined && root !== '') inbox = inboxOfFile(JSON.parse(readFileSync(join(root, 'web.json'), 'utf8')))
   if (inbox === undefined) return
 

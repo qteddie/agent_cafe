@@ -747,6 +747,18 @@ describe('the web page', () => {
     expect(page.posts).toEqual([{ url: 'https://file.example.com/in', key: 'Bearer from-file', kind: 'snap' }])
   })
 
+  test(
+    'is told at the address web.json gives when only the key is in the settings',
+    { options: { web_key: 'from-settings' } },
+    async ($, on) => {
+      const w = world(on)
+      const page = web(on, WEB_JSON)
+      await $.session.start(START)
+      await w.clock.advance(2_000)
+      expect(page.posts).toEqual([{ url: 'https://file.example.com/in', key: 'Bearer from-file', kind: 'snap' }])
+    },
+  )
+
   test('is told nothing with neither', async ($, on) => {
     const w = world(on)
     const page = web(on)

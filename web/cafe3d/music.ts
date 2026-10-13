@@ -9,10 +9,13 @@
 // while the tab is hidden, where timers slow down), so the music never stumbles.
 //
 // Browsers allow sound only after the person does something on the page:
-// `start` is called from a click.
+// `start` is called from a click, and gives up (rejects) when the browser
+// keeps the sound waiting for one.
 
 export type Music = {
+  /** True while the music is on and the browser is playing it. */
   readonly isPlaying: boolean
+  /** Rejects when the browser will not play sound yet: it waits for a click or a key. */
   start: () => Promise<void>
   stop: () => void
   /** 0 to 1. */
@@ -67,7 +70,8 @@ function frequency(midi: number): number {
   return 440 * 2 ** ((midi - 69) / 12)
 }
 
-export function createMusic(): Music | undefined {
+/** The music, or undefined in a browser without Web Audio. `onChange` hears when the browser starts or stops the sound by itself. */
+export function createMusic(onChange?: () => void): Music | undefined {
   const Context = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
   if (Context === undefined) return undefined
 
@@ -106,7 +110,14 @@ export function createMusic(): Music | undefined {
     squeeze.ratio.value = 3
     squeeze.attack.value = 0.02
     squeeze.release.value = 0.3
-    master.connect(squeeze).connect(audio.destination)
+    // And a limiter last, so that the loudest setting does not clip.
+    const limit = audio.createDynamicsCompressor()
+    limit.threshold.value = -3
+    limit.knee.value = 0
+    limit.ratio.value = 20
+    limit.attack.value = 0.002
+    limit.release.value = 0.1
+    master.connect(squeeze).connect(limit).connect(audio.destination)
 
     // Warm and a little worn: the top rolled off, as from an old record.
     const warmth = audio.createBiquadFilter()
@@ -298,6 +309,8 @@ export function createMusic(): Music | undefined {
     if (noise === undefined || bus === undefined) return
     const source = audio.createBufferSource()
     source.buffer = noise
+    // The noise lasts a second: a longer sound (the steam) goes round it.
+    source.loop = decay > 0.5
     source.playbackRate.value = 0.8 + random() * 0.4
     const shape = audio.createBiquadFilter()
     shape.type = filter
@@ -427,7 +440,9 @@ export function createMusic(): Music | undefined {
 
   function schedule(): void {
     const audio = context
-    if (audio === undefined) return
+    if (audio === undefined || audio.state !== 'running') return
+    // A page that stalled (or a sound the browser held back) skips the bars it missed rather than play them all at once.
+    if (nextBar < audio.currentTime + 0.05) nextBar = audio.currentTime + 0.1
     // A hidden tab's timers fire once a minute at worst: then the music is written out further ahead.
     const ahead = document.hidden ? 65 : 0.4
     while (nextBar < audio.currentTime + ahead) {
@@ -437,22 +452,58 @@ export function createMusic(): Music | undefined {
     }
   }
 
+  /** Asks the browser to play: true once it does. A browser waiting for a click leaves `resume` pending, so it is not waited on for long. */
+  async function wake(audio: AudioContext): Promise<boolean> {
+    if (isRunning(audio)) return true
+    await Promise.race([audio.resume().catch(() => undefined), new Promise(done => window.setTimeout(done, 400))])
+    return isRunning(audio)
+  }
+
+  // A function, so that the state is read afresh after an await.
+  function isRunning(audio: AudioContext): boolean {
+    return audio.state === 'running'
+  }
+
+  function close(audio: AudioContext): void {
+    if (audio.state !== 'closed') audio.close().catch(() => undefined)
+  }
+
+  /** Moves the volume from where it is now, without a jump, whatever ramp was under way. */
+  function glide(audio: AudioContext, gain: GainNode, to: number, time: number): void {
+    const now = audio.currentTime
+    const level = gain.gain.value
+    gain.gain.cancelScheduledValues(now)
+    gain.gain.setValueAtTime(level, now)
+    gain.gain.setTargetAtTime(to, now, time)
+  }
+
   return {
     get isPlaying() {
-      return isPlaying
+      return isPlaying && context !== undefined && context.state === 'running'
     },
 
     async start() {
-      if (isPlaying) return
+      const playing = context
+      if (isPlaying && playing !== undefined) {
+        // On already, and the browser put the sound to sleep (a phone call, say): woken again.
+        if (!(await wake(playing))) throw new Error('the browser waits for a click before it plays sound')
+        return
+      }
       isPlaying = true
       const audio = new Context()
       context = audio
       build(audio)
-      await audio.resume()
-      // Stopped again while the browser was starting the sound: let it go.
-      if (context !== audio) {
-        void audio.close()
-        return
+      audio.addEventListener('statechange', () => {
+        if (context === audio) onChange?.()
+      })
+      const isAwake = await wake(audio)
+      // Stopped again while the browser was starting the sound: stop() lets it go.
+      if (context !== audio) return
+      if (!isAwake) {
+        isPlaying = false
+        context = undefined
+        close(audio)
+        throw new Error('the browser waits for a click before it plays sound')
       }
       key = pick(KEYS)
       progression = pick(PROGRESSIONS)
@@ -473,15 +524,14 @@ export function createMusic(): Music | undefined {
       const gain = master
       context = undefined
       if (audio === undefined) return
-      gain?.gain.cancelScheduledValues(audio.currentTime)
-      gain?.gain.setTargetAtTime(0, audio.currentTime, 0.15)
-      window.setTimeout(() => void audio.close(), 800)
+      if (gain !== undefined && audio.state === 'running') glide(audio, gain, 0, 0.15)
+      window.setTimeout(() => close(audio), 800)
     },
 
     setVolume(next) {
       volume = Math.max(0, Math.min(1, next))
       const audio = context
-      if (audio !== undefined && master !== undefined) master.gain.setTargetAtTime(volume, audio.currentTime, 0.08)
+      if (audio !== undefined && master !== undefined && audio.state === 'running') glide(audio, master, volume, 0.08)
     },
   }
 }
