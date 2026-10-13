@@ -137,6 +137,8 @@ The page is the café, full screen. Each session gets a long table: the main age
 
 Tables spread out: the first goes in the middle of the room, and each next one takes the free spot furthest from the others (with two or more, the corners first). Subagents sit in a checkerboard, across the table and then a seat further along on the other side, so the table fills evenly before anyone sits next to anyone.
 
+Every agent is a person of their own, the same at every visit: hair, hats, glasses, beards, clothes and height all come from the agent. Each session's main agent wears Claude orange; nobody else does.
+
 Everyone moves about by what their agent is doing:
 
 | The agent is | In the café |
@@ -389,7 +391,8 @@ Where things are:
 | `web/cafe3d/main.ts` | The 3D café's entry point: camera, rendering, tables, people, picking |
 | `web/cafe3d/layout.ts`, `web/cafe3d/nav.ts` | Where everything in the room is; how people and pets find their way around the furniture (A*) |
 | `web/cafe3d/mind.ts`, `web/cafe3d/guest.ts` | What an agent's state makes its person want to do, where they go, and what they do there |
-| `web/cafe3d/person.ts`, `web/cafe3d/pets.ts`, `web/cafe3d/room.ts` | The blocky people and their poses; cats and dogs; the café itself |
+| `web/cafe3d/figure.ts`, `web/cafe3d/person.ts` | Who each guest is (hair, hats, clothes, build, picked from the agent); the blocky person built from that, and its poses |
+| `web/cafe3d/pets.ts`, `web/cafe3d/room.ts` | Cats and dogs; the café itself |
 | `web/cafe3d/music.ts` | The café's lo-fi music, made with Web Audio |
 | `web/cafe3d/kit.ts`, `web/cafe3d/tags.ts` | Merged blocks and canvas textures (floor, bubbles); the name tags over the picture |
 | `web/package.json` | The 3D café's development tools: three.js, types, the bundle command |
