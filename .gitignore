@@ -13,3 +13,5 @@ dist/
 
 # web/.env holds the web page's keys.
 **/.env
+# The web page's build tools (web/package.json): bun install in web/.
+node_modules/

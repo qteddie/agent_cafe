@@ -25,19 +25,28 @@ export type PageWords = {
   started: (time: string) => string
   /** The link to a session on claude.ai. */
   open: string
-  /** How a session reports, in a tooltip. */
-  viaMod: string
-  viaHooks: string
-  /** Said of tables the picture has no room for. */
-  offPicture: string
+  /** Closes the card of a guest. */
+  close: string
+  /** The 3D café's button that puts the whole room back in view, and how to move about in it. */
+  resetView: string
+  stageHint: string
+  /** Said where the browser cannot draw the café in 3D. */
+  noStage: string
+  noStageHint: string
+  /** The café's cats and dogs: the controls that add one and let one go home. */
+  pets: string
+  cats: string
+  dogs: string
+  moreCats: string
+  fewerCats: string
+  moreDogs: string
+  fewerDogs: string
   /** The login form. */
   password: string
   enter: string
   wrong: string
   tooMany: string
   signOut: string
-  /** The other language, as its toggle reads. */
-  other: string
 }
 
 const ZH: PageWords = {
@@ -62,15 +71,23 @@ const ZH: PageWords = {
   untitled: (app, time) => `${app} · ${time}`,
   started: time => `${time} 入座`,
   open: '開啟',
-  viaMod: '由 mod 回報整桌狀態',
-  viaHooks: '由 hooks 逐筆回報',
-  offPicture: '畫面放不下，只列在這裡',
+  close: '關閉',
+  resetView: '回到全景',
+  stageHint: '拖曳旋轉、滾輪或兩指縮放，點一個人看他在做什麼',
+  noStage: '這個瀏覽器畫不出立體的咖啡廳',
+  noStageHint: '需要 WebGL：換一個瀏覽器，或在設定裡打開硬體加速。',
+  pets: '貓狗',
+  cats: '貓',
+  dogs: '狗',
+  moreCats: '多一隻貓',
+  fewerCats: '讓一隻貓回家',
+  moreDogs: '多一隻狗',
+  fewerDogs: '讓一隻狗回家',
   password: '密碼',
   enter: '進入',
   wrong: '密碼不對',
   tooMany: '試太多次了，請過幾分鐘再試',
   signOut: '登出',
-  other: 'EN',
 }
 
 const EN: PageWords = {
@@ -95,19 +112,28 @@ const EN: PageWords = {
   untitled: (app, time) => `${app} · ${time}`,
   started: time => `seated ${time}`,
   open: 'Open',
-  viaMod: 'Reported table by table by the mod',
-  viaHooks: 'Reported event by event by the hooks',
-  offPicture: 'No room in the picture: listed here only',
+  close: 'Close',
+  resetView: 'Whole room',
+  stageHint: 'Drag to turn, scroll or pinch to zoom, click someone to see what they are doing',
+  noStage: 'This browser cannot draw the café in 3D',
+  noStageHint: 'It needs WebGL: try another browser, or turn on hardware acceleration in its settings.',
+  pets: 'Pets',
+  cats: 'Cats',
+  dogs: 'Dogs',
+  moreCats: 'Add a cat',
+  fewerCats: 'Send a cat home',
+  moreDogs: 'Add a dog',
+  fewerDogs: 'Send a dog home',
   password: 'Password',
   enter: 'Enter',
   wrong: 'Wrong password',
   tooMany: 'Too many tries. Try again in a few minutes.',
   signOut: 'Sign out',
-  other: '中文',
 }
 
+/** The page's words: English, unless Traditional Chinese is asked for by name. */
 export function pageWordsFor(language: unknown): PageWords {
-  return language === 'en' ? EN : ZH
+  return language === 'zh-TW' ? ZH : EN
 }
 
 /** A time of day, `14:05`, in the server's time zone (TZ). */

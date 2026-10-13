@@ -1,0 +1,13 @@
+{
+  "name": "agent-cafe-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:3d": "bun build cafe3d/main.ts --target=browser --format=iife --minify --outfile=public/cafe3d.js"
+  },
+  "devDependencies": {
+    "@types/three": "0.186.0",
+    "three": "0.186.0",
+    "typescript": "7.0.2"
+  }
+}
