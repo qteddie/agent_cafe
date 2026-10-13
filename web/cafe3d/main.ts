@@ -9,9 +9,11 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 
+import { hash } from '../../hooks/sprites'
 import type { View, ViewLine, ViewTable } from '../look'
 import type { Line, World } from './guest'
 import { Guest } from './guest'
+import { heartTexture } from './kit'
 import type { Place, Point, Rect, Spot, SpotKind } from './layout'
 import {
   DOOR,
@@ -20,22 +22,22 @@ import {
   HALF_D,
   HALF_W,
   SLOTS,
-  SLOT_ORDER,
+  SLOT_COLUMNS,
   SPOTS,
   CAT_BEDS,
   TABLE_SEATS,
   WALL_H,
   chairOf,
-  columnsFor,
+  columnsOf,
   decorSpots,
   decorTable,
+  pickSlot,
   rugRect,
   tableRect,
 } from './layout'
-import { hash } from '../../hooks/sprites'
 import { NavGrid } from './nav'
 import type { PetWorld, Species } from './pets'
-import { Pet } from './pets'
+import { Ball, Pet } from './pets'
 import { Room } from './room'
 import type { TagPhase } from './tags'
 import { Tags } from './tags'
@@ -50,6 +52,8 @@ export type StageOptions = {
   hint: string
   /** A click on the room: the key of the guest clicked (as the view names it), `''` for none. */
   onPick: (key: string) => void
+  /** What a pet picked out says it can be asked to do, by kind. */
+  petHint: Readonly<Record<Species, string>>
 }
 
 export type Stage = {
@@ -65,6 +69,11 @@ export type Stage = {
 
 /** The most pets of each kind. */
 export const MAX_PETS = 8
+/** A pet picked out is let go after this long without a word from the person. */
+const CHOSEN_MS = 45_000
+/** How long a heart floats up, and how long the mark of a click on the floor shows. */
+const HEART_MS = 1_300
+const MARK_MS = 900
 
 type Table = {
   id: string
@@ -142,7 +151,25 @@ class Cafe3D implements World, PetWorld, Stage {
   private frame = 0
   private hovered = ''
   private marked = ''
-  private pressedAt: { x: number; y: number } | undefined
+  private hoveredPet: Pet | undefined
+  /** The pet the person clicked last: a click on the floor sends it there. */
+  private chosenPet: Pet | undefined
+  private chosenAt = 0
+  /** Each dog's ball, by the dog's id. */
+  private readonly balls = new Map<string, Ball>()
+  private readonly hearts: { sprite: THREE.Sprite; born: number }[] = []
+  private readonly heartMaterial = new THREE.SpriteMaterial({ map: heartTexture(), transparent: true, depthWrite: false })
+  /** Where the person last sent a pet, marked a moment on the floor. */
+  private readonly mark = new THREE.Mesh(
+    new THREE.RingGeometry(0.16, 0.24, 24),
+    new THREE.MeshBasicMaterial({ color: '#fff8ea', transparent: true, opacity: 0, depthWrite: false }),
+  )
+  private markAt = -Infinity
+  private readonly floorPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)
+  /** Where the primary button or finger went down: a click if it comes up near there. */
+  private pressedAt: { x: number; y: number; id: number } | undefined
+  /** How much the tags say now; changed only past a margin, so a small camera move never flips it. */
+  private tagSize: 'full' | 'compact' | 'tiny' = 'full'
   private hasUserMoved = false
   private flight: { from: THREE.Vector3; fromTarget: THREE.Vector3; to: THREE.Vector3; toTarget: THREE.Vector3; t: number } | undefined
   private readonly hint: HTMLElement
@@ -164,6 +191,9 @@ class Cafe3D implements World, PetWorld, Stage {
     this.room = new Room(options.title)
     this.scene.add(this.room.root)
     this.tags = new Tags(host)
+    this.mark.rotation.x = -Math.PI / 2
+    this.mark.visible = false
+    this.scene.add(this.mark)
     this.rebuildNav()
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement)
@@ -199,14 +229,18 @@ class Cafe3D implements World, PetWorld, Stage {
     canvas.addEventListener('pointermove', event => this.aim(event))
     canvas.addEventListener('pointerleave', () => this.pointer.set(9, 9))
     canvas.addEventListener('pointerdown', event => {
-      this.pressedAt = { x: event.clientX, y: event.clientY }
+      // A second finger (a pinch) or another button is no click: it cancels the one begun.
+      this.pressedAt = event.isPrimary && event.button === 0 ? { x: event.clientX, y: event.clientY, id: event.pointerId } : undefined
     })
     canvas.addEventListener('pointerup', event => {
       const pressed = this.pressedAt
       this.pressedAt = undefined
-      if (pressed === undefined || Math.hypot(event.clientX - pressed.x, event.clientY - pressed.y) > 6) return
+      if (pressed === undefined || event.pointerId !== pressed.id || Math.hypot(event.clientX - pressed.x, event.clientY - pressed.y) > 6) return
       this.aim(event)
-      this.options.onPick(this.pick())
+      this.click()
+    })
+    window.addEventListener('keydown', event => {
+      if (event.key === 'Escape') this.choosePet(undefined)
     })
 
     new ResizeObserver(() => this.resize()).observe(host)
@@ -235,7 +269,8 @@ class Cafe3D implements World, PetWorld, Stage {
     for (const table of view.tables.filter(each => each.inPicture)) {
       let state = this.tables.get(table.id)
       if (state === undefined) {
-        const slot = SLOT_ORDER.find(index => this.slotOwners[index] === undefined)
+        const taken = [...Array(SLOTS).keys()].filter(index => this.slotOwners[index] !== undefined)
+        const slot = pickSlot(taken)
         if (slot === undefined) continue
         state = { id: table.id, slot, title: '', app: '', isAsking: false, chairs: new Map(), isClosing: false }
         this.tables.set(table.id, state)
@@ -312,7 +347,7 @@ class Cafe3D implements World, PetWorld, Stage {
         this.pets.push(pet)
         staying.push(pet)
         this.scene.add(pet.root)
-        pet.arrive(this, !isFirst)
+        pet.enter(this, !isFirst)
       }
       // Let go the last ones first.
       staying.sort((one, other) => one.id.localeCompare(other.id, undefined, { numeric: true }))
@@ -435,6 +470,15 @@ class Cafe3D implements World, PetWorld, Stage {
     return this.nav.nearestPoint(center ?? { x: 0, z: 2 })
   }
 
+  /** Where a dog brings a ball back to: the edge of the floor nearest the camera, a little in. */
+  bringBack(pet: Pet): Point {
+    const camera = this.camera.position
+    const x = THREE.MathUtils.clamp(camera.x, FLOOR.x0 + 1, FLOOR.x1 - 1)
+    const z = THREE.MathUtils.clamp(camera.z, FLOOR.z0 + 1, FLOOR.z1 - 1)
+    // Toward the camera from where the dog is, but not all the way to the edge.
+    return this.nav.nearestPoint({ x: pet.x + (x - pet.x) * 0.75, z: pet.z + (z - pet.z) * 0.75 })
+  }
+
   cameraYaw(x: number, z: number): number {
     return Math.atan2(this.camera.position.x - x, this.camera.position.z - z)
   }
@@ -460,9 +504,10 @@ class Cafe3D implements World, PetWorld, Stage {
       const table = owner === undefined ? undefined : this.tables.get(owner)
       const furniture = this.room.slots[slot]
       if (furniture === undefined) continue
-      const columns = table === undefined ? 0 : columnsFor(Math.max(1, ...table.chairs.values()) + 1)
+      const columns = table === undefined ? 0 : columnsOf(table.chairs.values())
       if (furniture.shown !== columns) {
-        furniture.use(columns, SLOT_ORDER.indexOf(slot))
+        // Rug colours by the slot's place on the grid: no two neighbours alike, across or along.
+        furniture.use(columns, (slot % SLOT_COLUMNS) + 2 * Math.floor(slot / SLOT_COLUMNS))
         isMoved = true
       }
     }
@@ -574,25 +619,104 @@ class Cafe3D implements World, PetWorld, Stage {
     this.wake()
   }
 
-  /** The guest under the pointer, nearest first; `''` for none. */
-  private pick(): string {
-    if (Math.abs(this.pointer.x) > 1 || Math.abs(this.pointer.y) > 1) return ''
+  /** The guest or the pet under the pointer, the nearest of them; neither for the floor. */
+  private pick(): { key: string; pet: Pet | undefined } {
+    const none = { key: '', pet: undefined }
+    if (Math.abs(this.pointer.x) > 1 || Math.abs(this.pointer.y) > 1) return none
     this.raycaster.setFromCamera(this.pointer, this.camera)
-    let best = ''
+    let best: { key: string; pet: Pet | undefined } = none
     let bestDistance = Infinity
     const hit = new THREE.Vector3()
+    const consider = (found: { key: string; pet: Pet | undefined }): void => {
+      if (this.raycaster.ray.intersectBox(this.box, hit) === null) return
+      const distance = hit.distanceTo(this.raycaster.ray.origin)
+      if (distance < bestDistance) {
+        bestDistance = distance
+        best = found
+      }
+    }
     for (const guest of this.guests.values()) {
       if (guest.isLeaving || guest.body.presence < 0.5) continue
       this.box.min.set(guest.x - 0.3, 0, guest.z - 0.3)
       this.box.max.set(guest.x + 0.3, guest.body.headTop() + 0.1, guest.z + 0.3)
-      if (this.raycaster.ray.intersectBox(this.box, hit) === null) continue
-      const distance = hit.distanceTo(this.raycaster.ray.origin)
-      if (distance < bestDistance) {
-        bestDistance = distance
-        best = guest.key
-      }
+      consider({ key: guest.key, pet: undefined })
+    }
+    for (const pet of this.pets) {
+      if (pet.isLeaving || !pet.isPresent) continue
+      // The pet's own outline, turned as it stands: a dog's snout is as good as its back.
+      pet.hitBox(this.box)
+      consider({ key: '', pet })
     }
     return best
+  }
+
+  /**
+   * A click on the room: a pet clicked perks up and is picked out; a guest
+   * clicked opens its card; the floor clicked sends the pet picked out there
+   * (a dog after a ball), or else closes the card.
+   */
+  private click(): void {
+    const { key, pet } = this.pick()
+    if (pet !== undefined) {
+      pet.poke(this)
+      this.choosePet(pet)
+      this.cheer(pet)
+      return
+    }
+    if (key !== '') {
+      this.choosePet(undefined)
+      this.options.onPick(key)
+      return
+    }
+    const chosen = this.chosenPet
+    if (chosen !== undefined) {
+      const point = this.raycaster.ray.intersectPlane(this.floorPlane, new THREE.Vector3())
+      if (point !== null && point.x > FLOOR.x0 && point.x < FLOOR.x1 && point.z > FLOOR.z0 && point.z < FLOOR.z1) {
+        this.send(chosen, { x: point.x, z: point.z })
+        return
+      }
+    }
+    // Anywhere else (a wall, outside the room): the pet picked out is let go, and the card closed.
+    this.choosePet(undefined)
+    this.options.onPick('')
+  }
+
+  private choosePet(pet: Pet | undefined): void {
+    this.chosenPet = pet
+    this.chosenAt = this.now
+    this.wake()
+  }
+
+  /** The pet picked out, sent to a point of the floor: a dog runs after a ball thrown there. */
+  private send(pet: Pet, point: Point): void {
+    const target = this.nav.nearestPoint(point)
+    this.chosenAt = this.now
+    this.markAt = this.now
+    this.mark.position.set(target.x, 0.02, target.z)
+    if (pet.species === 'dog') {
+      let ball = this.balls.get(pet.id)
+      if (ball === undefined) {
+        ball = new Ball()
+        this.balls.set(pet.id, ball)
+        this.scene.add(ball.mesh)
+      }
+      ball.throwTo(target, this.now)
+      pet.fetch(ball, this)
+    } else if (pet.call(target, this)) {
+      this.cheer(pet)
+    }
+    this.wake()
+  }
+
+  /** Hearts float up from a pet the person was kind to. */
+  private cheer(pet: Pet): void {
+    for (let index = 0; index < 3; index += 1) {
+      const sprite = new THREE.Sprite(this.heartMaterial.clone())
+      sprite.scale.setScalar(0.16)
+      sprite.position.set(pet.x + (index - 1) * 0.14, pet.height + 0.05 + index * 0.05, pet.z)
+      this.scene.add(sprite)
+      this.hearts.push({ sprite, born: this.now + index * 120 })
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -643,23 +767,61 @@ class Cafe3D implements World, PetWorld, Stage {
       if (Math.hypot(guest.x - DOOR.inside.x, guest.z - DOOR.inside.z) < 1.6 && guest.isWalking) isDoorWanted = true
       if (guest.x > HALF_W - 0.2 && guest.body.presence > 0) isDoorWanted = true
     }
+    // A guest whose pet the person called away, or that went home, stops petting the air.
+    for (const guest of this.guests.values()) {
+      if (guest.isPetting && !this.pets.some(pet => pet.petter === guest.key)) guest.stopPetting(this)
+    }
     this.room.update(dt, t, this.motion, this.camera.position, isDoorWanted)
     this.tidy()
+    this.play()
 
-    const hovered = this.pick()
-    if (hovered !== this.hovered) {
+    const { key: hovered, pet: hoveredPet } = this.pick()
+    if (hovered !== this.hovered || hoveredPet !== this.hoveredPet) {
       this.hovered = hovered
-      this.renderer.domElement.style.cursor = hovered === '' ? '' : 'pointer'
+      this.hoveredPet = hoveredPet
+      this.renderer.domElement.style.cursor = hovered === '' && hoveredPet === undefined ? '' : 'pointer'
     }
     for (const guest of this.guests.values()) {
       const isMarked = guest.key === this.hovered || guest.key === this.marked
       guest.body.setRing(isMarked)
       this.tags.mark(guest.key, isMarked)
     }
+    for (const pet of this.pets) pet.setRing(pet === this.chosenPet || pet === this.hoveredPet)
 
     this.renderer.render(this.scene, this.camera)
     this.placeTags()
     this.wake()
+  }
+
+  /** The person's play with the pets: the balls, the hearts, the mark on the floor, and the pet picked out. */
+  private play(): void {
+    const chosen = this.chosenPet
+    if (chosen !== undefined && (chosen.isLeaving || chosen.isGone || this.now - this.chosenAt > CHOSEN_MS)) this.chosenPet = undefined
+    for (const [id, ball] of [...this.balls]) {
+      ball.update(this.now, this.motion)
+      const dog = this.pets.find(pet => pet.id === id && !pet.isLeaving)
+      if (ball.state !== 'carried' && (ball.isOld(this.now) || dog === undefined)) {
+        this.scene.remove(ball.mesh)
+        this.balls.delete(id)
+      }
+    }
+    for (const heart of [...this.hearts]) {
+      const age = (this.now - heart.born) / HEART_MS
+      heart.sprite.visible = age >= 0
+      if (age < 0) continue
+      heart.sprite.position.y += 0.012 * this.motion
+      heart.sprite.material.opacity = Math.max(0, 1 - age)
+      if (age < 1) continue
+      this.scene.remove(heart.sprite)
+      heart.sprite.material.dispose()
+      this.hearts.splice(this.hearts.indexOf(heart), 1)
+    }
+    const markAge = (this.now - this.markAt) / MARK_MS
+    this.mark.visible = markAge < 1
+    if (markAge < 1) {
+      this.mark.scale.setScalar(1 + markAge * 0.8)
+      ;(this.mark.material as THREE.MeshBasicMaterial).opacity = 0.9 * (1 - markAge)
+    }
   }
 
   /** Guests walking into each other step aside. */
@@ -700,7 +862,13 @@ class Cafe3D implements World, PetWorld, Stage {
     const foot = toScreen(this.controls.target.x, 0, this.controls.target.z)
     const head = toScreen(this.controls.target.x, 1, this.controls.target.z)
     const metre = Math.abs(foot.sy - head.sy)
-    this.tags.setSize(metre < 22 ? 'tiny' : metre < 36 ? 'compact' : 'full')
+    // Each step is taken a few pixels past its mark, and given back a few pixels short of it: a
+    // camera settling after a click never flips every tag back and forth.
+    const margin = 3
+    const fullAt = this.tagSize === 'full' ? 36 - margin : 36 + margin
+    const compactAt = this.tagSize === 'tiny' ? 22 + margin : 22 - margin
+    this.tagSize = metre >= fullAt ? 'full' : metre >= compactAt ? 'compact' : 'tiny'
+    this.tags.setSize(this.tagSize)
 
     const live = new Set<string>()
     for (const guest of this.guests.values()) {
@@ -719,6 +887,22 @@ class Cafe3D implements World, PetWorld, Stage {
       this.tags.set(key, 'table', table.title, table.app, table.isAsking ? 'ask' : '')
       const at = toScreen(rug.x0 + 0.05, 0.02, rug.z1)
       this.tags.place(key, at.sx, at.sy, 0.99, at.isIn && !table.isClosing)
+    }
+    // A pet's name, over it while it is pointed at or picked out, and what it says.
+    for (const pet of this.pets) {
+      const key = `pet:${pet.id}`
+      live.add(key)
+      const isTalking = this.now < pet.saidUntil
+      const isShown = pet === this.chosenPet || pet === this.hoveredPet || isTalking
+      if (!isShown) {
+        this.tags.place(key, 0, 0, 1, false)
+        continue
+      }
+      const says = isTalking ? pet.said : pet === this.chosenPet ? this.options.petHint[pet.species] : ''
+      this.tags.set(key, 'pet', pet.name, says, '')
+      this.tags.mark(key, pet === this.chosenPet)
+      const at = toScreen(pet.x, pet.height + 0.3, pet.z)
+      this.tags.place(key, at.sx, at.sy, at.depth, at.isIn && pet.isPresent && !pet.isLeaving)
     }
     for (const key of this.tags.keys()) if (!live.has(key)) this.tags.remove(key)
   }

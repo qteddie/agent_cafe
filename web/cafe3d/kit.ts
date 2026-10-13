@@ -288,3 +288,9 @@ export function bubbleTexture(name: BubbleName): THREE.CanvasTexture | undefined
   bubbles.set(name, texture)
   return texture
 }
+
+/** A pixel heart, for the hearts that float up from a pet the person was kind to. */
+export function heartTexture(): THREE.CanvasTexture {
+  const heart: Grid = ['.oo.oo.', 'ohhohho', 'ohhhhho', '.ohhho.', '..oho..', '...o...']
+  return canvasTexture(7 * 8, 6 * 8, context => paintGrid(context, heart, { o: '#8a2d3c', h: '#ef6f8a' }, 0, 0, 8), true)
+}
