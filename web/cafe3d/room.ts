@@ -304,8 +304,9 @@ export class Room {
     for (const wall of this.walls) {
       wall.group.visible = camera.clone().sub(wall.point).dot(wall.normal) > 0
     }
-    const doorTarget = isDoorWanted ? 1.25 : 0
-    this.doorAngle += (doorTarget - this.doorAngle) * (motion > 0 ? 1 - Math.exp(-dt * 5) : 1)
+    // Open past square, back toward the wall outside, and quickly: the leaf is clear of both lanes before anyone reaches it.
+    const doorTarget = isDoorWanted ? 1.9 : 0
+    this.doorAngle += (doorTarget - this.doorAngle) * (motion > 0 ? 1 - Math.exp(-dt * 8) : 1)
     this.door.rotation.y = this.doorAngle
     this.steam.forEach((puff, index) => {
       const cycle = ((t * 0.55 + index / this.steam.length) % 1 + 1) % 1

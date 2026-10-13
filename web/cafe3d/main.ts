@@ -27,6 +27,7 @@ import {
   CAT_BEDS,
   TABLE_SEATS,
   WALL_H,
+  PET_ROOM,
   chairOf,
   chairRect,
   chairsOf,
@@ -78,8 +79,8 @@ const CHOSEN_MS = 45_000
 /** How long a heart floats up, and how long the mark of a click on the floor shows. */
 const HEART_MS = 1_300
 const MARK_MS = 900
-/** How far a pet's middle keeps from a chair: room for the head of the biggest dog lying beside it. */
-const PET_ROOM = 0.42
+/** Two guests about to walk into each other each step aside a little to their right, so that two who meet in mirror image turn about each other. */
+const KEEP_RIGHT = (15 * Math.PI) / 180
 
 type Table = {
   id: string
@@ -532,6 +533,8 @@ class Cafe3D implements World, PetWorld, Stage {
       nav.clear()
       for (const rect of FIXED_OBSTACLES) nav.block(rect)
     }
+    // The stools along the window bar are chairs too, to a dog.
+    for (const spot of SPOTS) if (spot.kind === 'bar') this.petNav.block(chairRect(spot), PET_ROOM)
     for (let slot = 0; slot < SLOTS; slot += 1) {
       const furniture = this.room.slots[slot]
       if (furniture === undefined) continue
@@ -655,17 +658,33 @@ class Cafe3D implements World, PetWorld, Stage {
         best = found
       }
     }
-    for (const guest of this.guests.values()) {
-      if (guest.isLeaving || guest.body.presence < 0.5) continue
-      this.box.min.set(guest.x - 0.3, 0, guest.z - 0.3)
-      this.box.max.set(guest.x + 0.3, guest.body.headTop() + 0.1, guest.z + 0.3)
-      consider({ key: guest.key, pet: undefined })
+    const pointable = [...this.guests.values()].filter(guest => !guest.isLeaving && guest.body.presence >= 0.5)
+    // A guest is picked by what is drawn of it, a hat's brim and a raised arm included, so that a nearer guest's
+    // empty corners do not take the click from the one seen behind it.
+    const shapes: THREE.Object3D[] = []
+    for (const guest of pointable) {
+      shapes.length = 0
+      guest.body.root.traverseVisible(object => {
+        if (object instanceof THREE.Mesh) shapes.push(object)
+      })
+      const exact = this.raycaster.intersectObjects(shapes, false)[0]
+      if (exact !== undefined && exact.distance < bestDistance) {
+        bestDistance = exact.distance
+        best = { key: guest.key, pet: undefined }
+      }
     }
     for (const pet of this.pets) {
       if (pet.isLeaving || !pet.isPresent) continue
       // The pet's own outline, turned as it stands: a dog's snout is as good as its back.
       pet.hitBox(this.box)
       consider({ key: '', pet })
+    }
+    if (best !== none) return best
+    // A click that just misses everyone: the box around each guest, so a thin seated figure is still easy to click.
+    for (const guest of pointable) {
+      this.box.min.set(guest.x - 0.3, 0, guest.z - 0.3)
+      this.box.max.set(guest.x + 0.3, guest.body.headTop() + 0.1, guest.z + 0.3)
+      consider({ key: guest.key, pet: undefined })
     }
     return best
   }
@@ -857,7 +876,8 @@ class Cafe3D implements World, PetWorld, Stage {
       for (let other = one + 1; other < all.length; other += 1) {
         const a = all[one] as Guest
         const b = all[other] as Guest
-        if (!a.isWalking && !b.isWalking) continue
+        // Two standing still in each other also move apart; a guest seated never moves.
+        if (!a.isWalking && !b.isWalking && !(a.isStanding && b.isStanding)) continue
         const dx = b.x - a.x
         const dz = b.z - a.z
         const distance = Math.hypot(dx, dz)
@@ -866,8 +886,12 @@ class Cafe3D implements World, PetWorld, Stage {
         // Two in the very same place (come in at the door together): apart across the room's depth.
         const nx = distance < 1e-4 ? 0 : dx / distance
         const nz = distance < 1e-4 ? 1 : dz / distance
-        if (a.isWalking) add(a, -nx * push, -nz * push)
-        if (b.isWalking) add(b, nx * push, nz * push)
+        const rx = nx * Math.cos(KEEP_RIGHT) + nz * Math.sin(KEEP_RIGHT)
+        const rz = nz * Math.cos(KEEP_RIGHT) - nx * Math.sin(KEEP_RIGHT)
+        // One standing gives way to one walking into it, more slowly than the walker steps aside.
+        const give = (guest: Guest): number => (guest.isWalking ? push : guest.isStanding ? Math.min(push, 0.6 * dt) : 0)
+        add(a, -rx * give(a), -rz * give(a))
+        add(b, rx * give(b), rz * give(b))
       }
     }
     for (const [guest, push] of pushes) guest.nudge(push.x, push.z, dt, this.nav)

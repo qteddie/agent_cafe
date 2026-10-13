@@ -472,16 +472,19 @@ export class Pet {
   reroute(world: PetWorld): void {
     const nav = world.petNav
     if (this.mood === 'leave') {
-      if (world.motion > 0 && this.path.length > 0 && this.x <= HALF_W) this.path = [...nav.path(this, DOOR.inside), DOOR.outside]
+      // Only a pet still short of the step inside the door is sent a new way; one past it goes straight out.
+      if (world.motion > 0 && this.path.length > 1 && this.x <= HALF_W) this.path = [...nav.path(this, DOOR.inside), DOOR.outside]
       return
     }
     if (this.path.length > 0) {
-      if (world.motion === 0 || this.x > HALF_W) return
       // A ball lies where it fell; anywhere else it goes to the free floor nearest where it meant to.
       if (this.errand !== 'fetch') this.goal = nav.nearestPoint(this.goal)
-      this.path = nav.path(this, this.goal)
+      // One still coming in walks to the step inside the door first, as it did.
+      this.path = this.x > HALF_W ? [DOOR.inside, ...nav.path(DOOR.inside, this.goal)] : nav.path(this, this.goal)
       return
     }
+    // A dog at its ball, waiting for it to land, stays: in a moment it picks it up and runs back.
+    if (this.errand === 'fetch') return
     if (nav.isFree(this)) return
     const spot = nav.nearestPoint(this)
     this.petter = ''

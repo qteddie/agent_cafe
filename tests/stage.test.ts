@@ -6,15 +6,21 @@ import { describe, expect, test } from 'claude-code/testing'
 
 import type { Point, Rect } from '../web/cafe3d/layout'
 import {
+  CAT_BEDS,
+  CHAIR_HALF,
+  DOOR,
   FIXED_OBSTACLES,
   HALF_D,
   HALF_W,
+  PET_ROOM,
   SLOTS,
   SLOT_ORDER,
   SPOTS,
   SIDE_COLUMNS,
   TABLE_SEATS,
   chairOf,
+  chairRect,
+  chairsOf,
   columnsFor,
   columnsOf,
   decorSpots,
@@ -195,6 +201,58 @@ describe('finding the way', () => {
     for (const point of path) {
       expect(nav.isClear(from, point)).toBe(true)
       from = point
+    }
+  })
+})
+
+describe("the pets' floor", () => {
+  /** The floor the cats and dogs walk with every slot's table `columns` long: the chairs and the bar's stools kept clear, as the café lays it. */
+  function petFloor(columns: number): NavGrid {
+    const nav = furnished()
+    for (const spot of SPOTS) if (spot.kind === 'bar') nav.block(chairRect(spot), PET_ROOM)
+    for (let slot = 0; slot < SLOTS; slot += 1) {
+      nav.block(tableRect(slot, columns))
+      for (const chair of chairsOf(slot, columns)) nav.block(chairRect(chair), PET_ROOM)
+    }
+    return nav
+  }
+
+  test("stands the chairs a slot draws: all of a full table, the small table's two while it is free", () => {
+    for (let slot = 0; slot < SLOTS; slot += 1) {
+      expect(chairsOf(slot, SIDE_COLUMNS).length).toBe(TABLE_SEATS)
+      expect(chairsOf(slot, 0)).toEqual(decorSpots(slot))
+      expect(chairsOf(slot, 1).length).toBeLessThan(chairsOf(slot, 2).length)
+    }
+  })
+
+  test("keeps a pet clear of every chair and stool, with room for a dog's head beside it", () => {
+    for (const columns of [1, SIDE_COLUMNS]) {
+      const nav = petFloor(columns)
+      const seats: Point[] = [...SPOTS.filter(spot => spot.kind === 'bar')]
+      for (let slot = 0; slot < SLOTS; slot += 1) seats.push(...chairsOf(slot, columns))
+      for (const seat of seats) {
+        expect(nav.isFree(seat)).toBe(false)
+        for (let turn = 0; turn < 8; turn += 1) {
+          const angle = (turn / 8) * Math.PI * 2
+          const reach = CHAIR_HALF + 0.3
+          expect(nav.isFree({ x: seat.x + Math.cos(angle) * reach, z: seat.z + Math.sin(angle) * reach })).toBe(false)
+        }
+      }
+    }
+  })
+
+  test('still leads a pet from the door to every cat bed in a full café', () => {
+    const nav = petFloor(SIDE_COLUMNS)
+    for (const bed of CAT_BEDS) {
+      const spot = nav.nearestPoint(bed)
+      expect(Math.hypot(spot.x - bed.x, spot.z - bed.z)).toBeLessThan(0.5)
+      const path = nav.path(DOOR.inside, spot)
+      expect(path[path.length - 1]).toEqual(spot)
+      let from: Point = DOOR.inside
+      for (const point of path) {
+        expect(nav.isClear(from, point)).toBe(true)
+        from = point
+      }
     }
   })
 })

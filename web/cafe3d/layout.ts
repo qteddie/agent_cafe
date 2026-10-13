@@ -244,6 +244,8 @@ export function decorSpots(slot: number): Spot[] {
 
 /** Half a chair's width and depth: its seat is 0.42 square, the rail along its back 0.44 wide. */
 export const CHAIR_HALF = 0.22
+/** How far a pet's middle keeps from a chair or a stool: room for the head of the biggest dog lying beside it. */
+export const PET_ROOM = 0.42
 
 /** The chairs standing in a slot: its table's, for `columns` chairs along each side; the small table's two while it is free. */
 export function chairsOf(slot: number, columns: number): Place[] {
