@@ -35,6 +35,7 @@ import {
   WALL_H,
   WINDOWS,
   chairOf,
+  columnOfChair,
   decorSpots,
   decorTable,
   rugRect,
@@ -191,8 +192,8 @@ class Slot {
     const d = rect.z1 - rect.z0
     this.top.scale.set(w, 0.05, d)
     this.top.position.set(x, TABLE_H - 0.025, z)
-    this.edge.scale.set(w - 0.06, 0.004, d - 0.06)
-    this.edge.position.set(x, TABLE_H + 0.001, z)
+    this.edge.scale.set(w - 0.06, 0.008, d - 0.06)
+    this.edge.position.set(x, TABLE_H + 0.002, z)
     this.apron.scale.set(w - 0.1, 0.08, d - 0.1)
     this.apron.position.set(x, TABLE_H - 0.09, z)
     const legH = TABLE_H - 0.05
@@ -212,7 +213,7 @@ class Slot {
     const base = this.index * (TABLE_SEATS + 2)
     for (let seat = 0; seat < TABLE_SEATS; seat += 1) {
       const chair = chairOf(this.index, seat)
-      const isShown = this.shown > 0 && (seat === 0 || seat <= this.shown * 2)
+      const isShown = this.shown > 0 && columnOfChair(seat) < this.shown
       turn.setFromAxisAngle(up, chair.yaw)
       matrix.compose(new THREE.Vector3(chair.x, 0, chair.z), turn, new THREE.Vector3().setScalar(isShown ? 1 : 0))
       this.chairs.setMatrixAt(base + seat, matrix)
@@ -330,8 +331,9 @@ export class Room {
     floor.receiveShadow = true
     group.add(floor)
     const base = new Batch()
-    base.box(PLINTH, ROOM_W + 0.4, 0.45, ROOM_D + 0.4, 0, -0.452, 0)
-    base.box(WOOD_DARK, ROOM_W + 0.44, 0.06, 0.06, 0, -0.06, HALF_D + 0.2)
+    // The plinth stays clear of the floor's plane: two surfaces that close together flicker as the camera moves.
+    base.box(PLINTH, ROOM_W + 0.4, 0.45, ROOM_D + 0.4, 0, -0.5, 0)
+    base.box(WOOD_DARK, ROOM_W + 0.44, 0.06, 0.06, 0, -0.09, HALF_D + 0.2)
     // The step outside the door.
     base.box('#a7a29a', 1.9, 0.12, 1.8, HALF_W + 1.05, -0.121, DOOR.z)
     base.box('#8f8a83', 1.9, 0.02, 0.06, HALF_W + 1.05, -0.002, DOOR.z + 0.9)
@@ -364,10 +366,12 @@ export class Room {
   private backWall(): void {
     const z = -HALF_D
     this.wall(new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 0, z), (batch, group) => {
+      // No two faces of the walls share a plane where they meet: the trim stands
+      // proud of the wall's top, and the side walls start at this one's face.
       batch.box(WALL, ROOM_W + 0.4, WALL_H, 0.2, 0, 0, z - 0.1)
       batch.box(WAINSCOT, ROOM_W, 0.95, 0.03, 0, 0, z + 0.015)
       batch.box(TRIM, ROOM_W, 0.05, 0.06, 0, 0.93, z + 0.03)
-      batch.box(WOOD_DARK, ROOM_W + 0.4, 0.12, 0.26, 0, WALL_H - 0.12, z - 0.07)
+      batch.box(WOOD_DARK, ROOM_W + 0.44, 0.16, 0.26, 0, WALL_H - 0.12, z - 0.07)
 
       // The chalkboard with the tally, and the menu.
       batch.box(WOOD_DARK, 3.1, 1.3, 0.06, -2.6, 1.5, z + 0.03)
@@ -399,7 +403,7 @@ export class Room {
         [this.hourHand, 0.15, 0.035],
         [this.minuteHand, 0.23, 0.025],
       ] as const) {
-        hand.position.set(8.3, 2.25, z + 0.085)
+        hand.position.set(8.3, 2.25, z + (hand === this.hourHand ? 0.085 : 0.097))
         const mesh = new THREE.Mesh(UNIT_BOX, mat(INK))
         mesh.scale.set(width, length, 0.01)
         mesh.position.y = length / 2 - 0.02
@@ -415,10 +419,12 @@ export class Room {
   private leftWall(): void {
     const x = -HALF_W
     this.wall(new THREE.Vector3(1, 0, 0), new THREE.Vector3(x, 0, 0), batch => {
-      batch.box(WALL, 0.2, WALL_H, ROOM_D + 0.4, x - 0.1, 0, 0)
-      batch.box(WAINSCOT, 0.03, 0.95, ROOM_D, x + 0.015, 0, 0)
-      batch.box(TRIM, 0.06, 0.05, ROOM_D, x + 0.03, 0.93, 0)
-      batch.box(WOOD_DARK, 0.26, 0.12, ROOM_D + 0.4, x - 0.07, WALL_H - 0.12, 0)
+      const back = -HALF_D
+      const front = HALF_D + 0.2
+      batch.box(WALL, 0.2, WALL_H, front - back, x - 0.1, 0, (back + front) / 2)
+      batch.box(WAINSCOT, 0.03, 0.95, HALF_D - back - 0.03, x + 0.015, 0, (back + 0.03 + HALF_D) / 2)
+      batch.box(TRIM, 0.06, 0.05, HALF_D + 0.01 - (back + 0.06), x + 0.03, 0.93, (back + 0.06 + HALF_D + 0.01) / 2)
+      batch.box(WOOD_DARK, 0.26, 0.16, front + 0.02 - (back + 0.06), x - 0.07, WALL_H - 0.12, (back + 0.06 + front + 0.02) / 2)
       // The corkboard, for planning, with notes pinned on it.
       const [z0, z1] = BOARD_Z
       const middle = (z0 + z1) / 2
@@ -428,8 +434,9 @@ export class Room {
       for (let note = 0; note < 9; note += 1) {
         const nz = z0 + 0.15 + random() * (z1 - z0 - 0.3)
         const ny = 1.2 + random() * 0.65
-        batch.box(NOTES[note % NOTES.length] ?? '#ffd84d', 0.012, 0.17, 0.17, x + 0.07, ny, nz)
-        batch.box('#e0564b', 0.02, 0.025, 0.025, x + 0.08, ny + 0.13, nz)
+        // Each note a hair proud of the one before: overlapping notes never share a plane.
+        batch.box(NOTES[note % NOTES.length] ?? '#ffd84d', 0.012, 0.17, 0.17, x + 0.07 + note * 0.003, ny, nz)
+        batch.box('#e0564b', 0.02, 0.025, 0.025, x + 0.09 + note * 0.003, ny + 0.13, nz)
       }
       // A second poster further along: the café's hours, in pixels.
       batch.box(DESK_EDGE, 0.05, 0.8, 1.1, x + 0.025, 1.45, 4.9)
@@ -446,14 +453,14 @@ export class Room {
     const doorTo = DOOR.z + DOOR.width / 2
     const doorH = 2.15
     this.wall(new THREE.Vector3(-1, 0, 0), new THREE.Vector3(x, 0, 0), (batch, group) => {
-      const back = -HALF_D - 0.2
+      const back = -HALF_D
       const front = HALF_D + 0.2
       batch.box(WALL, 0.2, WALL_H, doorFrom - back, x + 0.1, 0, (back + doorFrom) / 2)
       batch.box(WALL, 0.2, WALL_H, front - doorTo, x + 0.1, 0, (doorTo + front) / 2)
       batch.box(WALL, 0.2, WALL_H - doorH, DOOR.width, x + 0.1, doorH, DOOR.z)
-      batch.box(WAINSCOT, 0.03, 0.95, doorFrom + HALF_D, x - 0.015, 0, (doorFrom - HALF_D) / 2)
-      batch.box(WAINSCOT, 0.03, 0.95, HALF_D - doorTo, x - 0.015, 0, (doorTo + HALF_D) / 2)
-      batch.box(WOOD_DARK, 0.26, 0.12, ROOM_D + 0.4, x + 0.07, WALL_H - 0.12, 0)
+      batch.box(WAINSCOT, 0.03, 0.95, doorFrom - 0.1 - (back + 0.03), x - 0.015, 0, (back + 0.03 + doorFrom - 0.1) / 2)
+      batch.box(WAINSCOT, 0.03, 0.95, HALF_D - (doorTo + 0.1), x - 0.015, 0, (doorTo + 0.1 + HALF_D) / 2)
+      batch.box(WOOD_DARK, 0.26, 0.16, front + 0.02 - (back + 0.06), x + 0.07, WALL_H - 0.12, (back + 0.06 + front + 0.02) / 2)
 
       // The windows over the bar: a frame, the panes, and the sky.
       const sky = skyTexture()
@@ -461,18 +468,20 @@ export class Room {
         const middle = (z0 + z1) / 2
         const width = z1 - z0
         group.add(this.plane(sky, 0.01 + width - 0.12, 1.28, x - 0.012, 1.74, middle, -Math.PI / 2, true))
+        // The frame's pieces each stand out a little further than the one they cross.
         batch.box(DESK_EDGE, 0.08, 0.07, width + 0.06, x - 0.04, 2.38, middle)
         batch.box(DESK_EDGE, 0.14, 0.06, width + 0.16, x - 0.07, 1.04, middle)
-        batch.box(DESK_EDGE, 0.08, 1.4, 0.07, x - 0.04, 1.04, z0)
-        batch.box(DESK_EDGE, 0.08, 1.4, 0.07, x - 0.04, 1.04, z1)
+        batch.box(DESK_EDGE, 0.09, 1.36, 0.07, x - 0.045, 1.06, z0)
+        batch.box(DESK_EDGE, 0.09, 1.36, 0.07, x - 0.045, 1.06, z1)
         batch.box(DESK_EDGE, 0.05, 1.3, 0.04, x - 0.03, 1.08, middle)
-        batch.box(DESK_EDGE, 0.05, 0.04, width, x - 0.03, 1.72, middle)
+        batch.box(DESK_EDGE, 0.06, 0.04, width, x - 0.035, 1.72, middle)
       }
 
       // The door, in its frame, swinging out.
-      batch.box(WOOD_DARK, 0.28, doorH + 0.08, 0.08, x + 0.05, 0, doorFrom - 0.04)
-      batch.box(WOOD_DARK, 0.28, doorH + 0.08, 0.08, x + 0.05, 0, doorTo + 0.04)
-      batch.box(WOOD_DARK, 0.28, 0.08, DOOR.width + 0.16, x + 0.05, doorH, DOOR.z)
+      // The frame stands into the doorway and under the lintel, never flush with the wall.
+      batch.box(WOOD_DARK, 0.28, doorH + 0.05, 0.1, x + 0.05, 0, doorFrom - 0.03)
+      batch.box(WOOD_DARK, 0.28, doorH + 0.05, 0.1, x + 0.05, 0, doorTo + 0.03)
+      batch.box(WOOD_DARK, 0.27, 0.1, DOOR.width + 0.2, x + 0.04, doorH - 0.02, DOOR.z)
       this.door.position.set(x + 0.12, 0, doorFrom + 0.01)
       const panel = new Batch()
       panel.box(WOOD, 0.06, doorH - 0.02, DOOR.width - 0.03, 0, 0, (DOOR.width - 0.03) / 2)
@@ -542,11 +551,11 @@ export class Room {
     const sx = (SHELF.x0 + SHELF.x1) / 2
     const sz = (SHELF.z0 + SHELF.z1) / 2
     const sd = SHELF.z1 - SHELF.z0
-    batch.box(CHAIR, 0.03, SHELF_H, sd, SHELF.x0 + 0.02, 0, sz)
+    batch.box(CHAIR, 0.03, SHELF_H - 0.01, sd - 0.1, SHELF.x0 + 0.02, 0, sz)
     batch.box(WOOD_DARK, 0.45, SHELF_H, 0.05, sx, 0, SHELF.z0 + 0.025)
     batch.box(WOOD_DARK, 0.45, SHELF_H, 0.05, sx, 0, SHELF.z1 - 0.025)
     for (const y of [0.04, 0.55, 1.05, 1.55, 2.05]) {
-      batch.box(WOOD, 0.45, 0.04, sd - 0.06, sx, y, sz)
+      batch.box(WOOD, 0.44, 0.04, sd - 0.1, sx, y, sz)
       if (y > 2) continue
       let z = SHELF.z0 + 0.07
       while (z < SHELF.z1 - 0.12) {
@@ -569,9 +578,9 @@ export class Room {
     const az = (ARMCHAIR.z0 + ARMCHAIR.z1) / 2
     batch.box('#2f6f6a', 0.8, 0.3, 0.8, ax, 0.03, az)
     batch.box('#3a8580', 0.6, 0.08, 0.62, ax + 0.08, 0.3, az)
-    batch.box('#2f6f6a', 0.18, 0.8, 0.8, ARMCHAIR.x0 + 0.09, 0.03, az)
-    batch.box('#28605b', 0.8, 0.52, 0.12, ax, 0.03, ARMCHAIR.z0 + 0.06)
-    batch.box('#28605b', 0.8, 0.52, 0.12, ax, 0.03, ARMCHAIR.z1 - 0.06)
+    batch.box('#2f6f6a', 0.18, 0.8, 0.78, ARMCHAIR.x0 + 0.09, 0.03, az)
+    batch.box('#28605b', 0.83, 0.52, 0.13, ax + 0.015, 0.03, ARMCHAIR.z0 + 0.055)
+    batch.box('#28605b', 0.83, 0.52, 0.13, ax + 0.015, 0.03, ARMCHAIR.z1 - 0.055)
     const tx = (SIDE_TABLE.x0 + SIDE_TABLE.x1) / 2
     const tz = (SIDE_TABLE.z0 + SIDE_TABLE.z1) / 2
     batch.add(WOOD, CYLINDER, tx, 0.55, tz, 0, 0.22, 0.03, 0.22)
@@ -584,10 +593,10 @@ export class Room {
     const fz = (SOFA.z0 + SOFA.z1) / 2
     const fd = SOFA.z1 - SOFA.z0
     batch.box('#a8523e', 0.85, 0.3, fd, fx, 0.03, fz)
-    for (const z of [1.95, 2.7, 3.45]) batch.box('#bf6650', 0.62, 0.1, 0.72, fx + 0.1, 0.3, z)
-    batch.box('#a8523e', 0.22, 0.82, fd, SOFA.x0 + 0.11, 0.03, fz)
-    batch.box('#934634', 0.85, 0.52, 0.15, fx, 0.03, SOFA.z0 + 0.075)
-    batch.box('#934634', 0.85, 0.52, 0.15, fx, 0.03, SOFA.z1 - 0.075)
+    for (const z of [1.95, 2.7, 3.45]) batch.box('#bf6650', 0.6, 0.1, 0.72, fx + 0.13, 0.3, z)
+    batch.box('#a8523e', 0.22, 0.82, fd - 0.02, SOFA.x0 + 0.11, 0.03, fz)
+    batch.box('#934634', 0.87, 0.52, 0.16, fx + 0.01, 0.03, SOFA.z0 + 0.07)
+    batch.box('#934634', 0.87, 0.52, 0.16, fx + 0.01, 0.03, SOFA.z1 - 0.07)
     batch.add('#ffd84d', UNIT_BOX, SOFA.x0 + 0.3, 0.52, SOFA.z1 - 0.38, 0.3, 0.1, 0.3, 0.3)
     for (const [x, z] of [
       [SOFA.x0 + 0.08, SOFA.z0 + 0.08],
@@ -616,7 +625,7 @@ export class Room {
     const bz = (BAR.z0 + BAR.z1) / 2
     const bd = BAR.z1 - BAR.z0
     batch.box(DESK_FRONT, 0.4, BAR_H - 0.05, bd - 0.1, bx + 0.02, 0, bz)
-    batch.box(DESK_TOP, BAR.x1 - BAR.x0 + 0.06, 0.05, bd, bx - 0.03, BAR_H - 0.05, bz)
+    batch.box(DESK_TOP, BAR.x1 - BAR.x0 + 0.06, 0.06, bd, bx - 0.03, BAR_H - 0.05, bz)
     for (const spot of SPOTS) {
       if (spot.kind !== 'bar') continue
       batch.add(CHAIR_LIGHT, CYLINDER, spot.x, spot.sit - 0.03, spot.z, 0, 0.18, 0.06, 0.18)
@@ -628,7 +637,7 @@ export class Room {
     // Plants in the corners, and one by the door outside.
     for (const plant of [...PLANTS, { x: HALF_W + 1.65, z: DOOR.z + 0.6 }]) {
       batch.add('#b5653a', POT, plant.x, 0.19, plant.z, 0, 0.21, 0.38, 0.21)
-      batch.add('#5b4030', CYLINDER, plant.x, 0.37, plant.z, 0, 0.17, 0.02, 0.17)
+      batch.add('#5b4030', CYLINDER, plant.x, 0.385, plant.z, 0, 0.17, 0.03, 0.17)
       batch.add('#6b4a32', CYLINDER, plant.x, 0.6, plant.z, 0, 0.025, 0.5, 0.025)
       leaves(batch, plant.x, 0.75, plant.z, 0.3, random)
     }

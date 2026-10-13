@@ -33,6 +33,9 @@ export type PageWords = {
   /** Said where the browser cannot draw the café in 3D. */
   noStage: string
   noStageHint: string
+  /** What a pet picked out in the café can be asked to do: a dog fetches, a cat may come. */
+  throwBall: string
+  callCat: string
   /** The café's cats and dogs: the controls that add one and let one go home. */
   pets: string
   cats: string
@@ -73,9 +76,11 @@ const ZH: PageWords = {
   open: '開啟',
   close: '關閉',
   resetView: '回到全景',
-  stageHint: '拖曳旋轉、滾輪或兩指縮放，點一個人看他在做什麼',
+  stageHint: '拖曳旋轉、滾輪或兩指縮放・點人看他在做什麼・點寵物再點地板，跟牠玩',
   noStage: '這個瀏覽器畫不出立體的咖啡廳',
   noStageHint: '需要 WebGL：換一個瀏覽器，或在設定裡打開硬體加速。',
+  throwBall: '點地板丟球給牠',
+  callCat: '點地板叫牠過來',
   pets: '貓狗',
   cats: '貓',
   dogs: '狗',
@@ -114,9 +119,11 @@ const EN: PageWords = {
   open: 'Open',
   close: 'Close',
   resetView: 'Whole room',
-  stageHint: 'Drag to turn, scroll or pinch to zoom, click someone to see what they are doing',
+  stageHint: 'Drag to turn, scroll or pinch to zoom · click a person to see what they are doing · click a pet, then the floor, to play',
   noStage: 'This browser cannot draw the café in 3D',
   noStageHint: 'It needs WebGL: try another browser, or turn on hardware acceleration in its settings.',
+  throwBall: 'Click the floor to throw a ball',
+  callCat: 'Click the floor to call it over',
   pets: 'Pets',
   cats: 'Cats',
   dogs: 'Dogs',

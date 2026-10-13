@@ -76,6 +76,15 @@ body.cafe {
   height: 100dvh;
   overflow: hidden;
   background: var(--board-deep);
+  /* Clicking and dragging about the room selects no text and flashes nothing. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body.cafe .card {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .sr-only {
@@ -461,6 +470,26 @@ body.cafe {
 .tag.is-marked {
   outline: 2px solid #d97757;
   z-index: 5000 !important;
+}
+
+/* A pet's name, and what it says. */
+.pet-tag {
+  background: rgba(255, 241, 246, 0.95);
+  box-shadow:
+    0 0 0 1.5px #e98fb0,
+    0 2px 6px rgba(0, 0, 0, 0.28);
+}
+
+.pet-tag .tag-says {
+  color: #8a2d3c;
+  font-weight: 600;
+}
+
+.tag.pet-tag.is-marked {
+  outline: none;
+  box-shadow:
+    0 0 0 2.5px #e98fb0,
+    0 2px 6px rgba(0, 0, 0, 0.28);
 }
 
 /* Small guests on the screen: their names alone, but for those who need you;
