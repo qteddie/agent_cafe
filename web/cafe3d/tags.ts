@@ -1,9 +1,11 @@
 // The words over the 3D café: a name tag over each guest (its name, and what
-// it is doing) and a placard for each table, laid over the canvas where
-// their point of the room falls on the screen. Everything a session reported
-// is set as text, never as markup.
+// it is doing), a placard for each table, and a pet's name while it is
+// pointed at, laid over the canvas where their point of the room falls on
+// the screen. Everything a session reported is set as text, never as markup.
 
 export type TagPhase = 'think' | 'work' | 'ask' | 'idle' | 'done' | 'fail'
+/** A guest's name tag, a table's placard, or a pet's name. */
+export type TagKind = 'guest' | 'table' | 'pet'
 
 type Tag = {
   root: HTMLDivElement
@@ -27,11 +29,11 @@ export class Tags {
   }
 
   /** The tag for `key`, made the first time it is asked for. */
-  private tag(key: string, kind: 'guest' | 'table'): Tag {
+  private tag(key: string, kind: TagKind): Tag {
     let tag = this.tags.get(key)
     if (tag === undefined) {
       const root = document.createElement('div')
-      root.className = kind === 'guest' ? 'tag' : 'placard'
+      root.className = kind === 'table' ? 'placard' : kind === 'pet' ? 'tag pet-tag' : 'tag'
       const name = document.createElement('span')
       name.className = 'tag-name'
       const says = document.createElement('span')
@@ -46,7 +48,7 @@ export class Tags {
   }
 
   /** Sets what a tag says; `phase` colors it. */
-  set(key: string, kind: 'guest' | 'table', name: string, says: string, phase: TagPhase | ''): void {
+  set(key: string, kind: TagKind, name: string, says: string, phase: TagPhase | ''): void {
     const tag = this.tag(key, kind)
     if (tag.name.textContent !== name) tag.name.textContent = name
     if (tag.says.textContent !== says) tag.says.textContent = says

@@ -76,6 +76,15 @@ body.cafe {
   height: 100dvh;
   overflow: hidden;
   background: var(--board-deep);
+  /* Clicking and dragging about the room selects no text and flashes nothing. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body.cafe .card {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .sr-only {
@@ -463,6 +472,26 @@ body.cafe {
   z-index: 5000 !important;
 }
 
+/* A pet's name, and what it says. */
+.pet-tag {
+  background: rgba(255, 241, 246, 0.95);
+  box-shadow:
+    0 0 0 1.5px #e98fb0,
+    0 2px 6px rgba(0, 0, 0, 0.28);
+}
+
+.pet-tag .tag-says {
+  color: #8a2d3c;
+  font-weight: 600;
+}
+
+.tag.pet-tag.is-marked {
+  outline: none;
+  box-shadow:
+    0 0 0 2.5px #e98fb0,
+    0 2px 6px rgba(0, 0, 0, 0.28);
+}
+
 /* Small guests on the screen: their names alone, but for those who need you;
    tiny ones, a tag only for those who need you, or the one picked out. */
 .tags[data-size="compact"] .tag .tag-says {
@@ -474,8 +503,13 @@ body.cafe {
   display: block;
 }
 
-.tags[data-size="tiny"] .tag:not([data-phase="ask"]):not(.is-marked) {
+.tags[data-size="tiny"] .tag:not(.pet-tag):not([data-phase="ask"]):not(.is-marked) {
   display: none;
+}
+
+/* A pet's tag is only there when it is pointed at, picked out or talking: shown whole at any size. */
+.tags[data-size="compact"] .pet-tag .tag-says {
+  display: block;
 }
 
 .tags[data-size="tiny"] .placard {
@@ -546,10 +580,13 @@ body.cafe {
 .stage-hint {
   left: 50%;
   translate: -50% 0;
+  /* One line where it fits, two where the screen is narrower: never cut short. */
+  width: max-content;
   max-width: calc(100% - 560px);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  text-wrap: balance;
+  text-align: center;
+  border-radius: 14px;
   background: rgba(28, 37, 33, 0.72);
   color: var(--chalk-dim);
   font-weight: 400;

@@ -242,6 +242,7 @@
         reset: words.resetView,
         hint: words.stageHint,
         onPick: pick,
+        petHint: { dog: words.throwBall, cat: words.callCat },
       })) ||
     null
   noStage.hidden = stage !== null

@@ -2,14 +2,16 @@
 // from the left wall to the right one, z from the back wall (the counter)
 // to the open front where the camera is, y is up.
 //
-// A session's table stands in one of nine slots, three by three. The main
-// loop sits at the head of it; its subagents along both sides, the first one
-// facing the camera. A table grows at its far end as subagents come, so a
-// seat once taken never moves.
+// A session's table stands in one of nine slots, three by three, as far from
+// the other tables as a free slot allows. The main loop sits at the head of
+// it; its subagents along both sides, in a checkerboard (one facing the
+// camera, the next across the table and one further along), so nobody sits
+// elbow to elbow while there is room. A table grows at its far end as
+// subagents come, so a seat once taken never moves.
 //
 // Pure: no three.js here, so the tests can walk the room too.
 
-export const ROOM_W = 21.2
+export const ROOM_W = 22.4
 export const ROOM_D = 13.6
 export const HALF_W = ROOM_W / 2
 export const HALF_D = ROOM_D / 2
@@ -18,19 +20,21 @@ export const WALL_H = 3
 export const SLOT_COLUMNS = 3
 export const SLOT_ROWS = 3
 export const SLOTS = SLOT_COLUMNS * SLOT_ROWS
-/** The most seats one table has: the head, and five or six along each side. */
-export const TABLE_SEATS = 12
+/** The most seats one table has: the head, and five along each side. */
+export const TABLE_SEATS = 11
+/** Chairs along each side of the longest table. */
+export const SIDE_COLUMNS = 5
 
 export const TABLE_H = 0.5
 /** A chair's seat, about the length of a leg. */
 export const CHAIR_H = 0.27
 
-const SLOT_W = 5.4
+const SLOT_W = 5.8
 const SLOT_D = 3.4
 const SLOTS_LEFT = -HALF_W + 2.4
 const SLOTS_TOP = -HALF_D + 2.6
 /** From one side chair to the next. */
-const PITCH = 0.66
+const PITCH = 0.9
 const TABLE_DEPTH = 0.9
 /** From the table's middle line to a side chair. */
 const CHAIR_OUT = 0.8
@@ -49,8 +53,8 @@ export const FACE_FRONT = 0
 export const FACE_RIGHT = Math.PI / 2
 export const FACE_LEFT = -Math.PI / 2
 
-/** The order slots are given out in: the row by the counter first, from the middle out. */
-export const SLOT_ORDER: readonly number[] = [1, 0, 2, 4, 3, 5, 7, 6, 8]
+/** Which slot is liked best, other things equal: the middle of the room, then the middle row and column, then the corners. */
+export const SLOT_ORDER: readonly number[] = [4, 1, 7, 3, 5, 0, 2, 6, 8]
 
 export function slotRect(slot: number): Rect {
   const column = slot % SLOT_COLUMNS
@@ -65,9 +69,56 @@ export function slotCenter(slot: number): Point {
   return { x: (rect.x0 + rect.x1) / 2, z: (rect.z0 + rect.z1) / 2 }
 }
 
-/** Side chairs along each side of a table that has `seats` in all, the head among them. */
+/**
+ * The free slot for a new table: the one furthest from the tables already
+ * standing, so the café fills evenly; the best liked of those that are as far.
+ */
+export function pickSlot(taken: readonly number[]): number | undefined {
+  let best: number | undefined
+  let bestDistance = -1
+  for (const slot of SLOT_ORDER) {
+    if (taken.includes(slot)) continue
+    const here = slotCenter(slot)
+    let nearest = Infinity
+    for (const other of taken) {
+      const there = slotCenter(other)
+      nearest = Math.min(nearest, Math.hypot(here.x - there.x, here.z - there.z))
+    }
+    if (nearest > bestDistance + 1e-6) {
+      best = slot
+      bestDistance = nearest
+    }
+  }
+  return best
+}
+
+/**
+ * Where side chair `side` (0 for the first after the head) stands: its column
+ * along the table, and whether across it, facing the camera. The first round
+ * takes every column once, crossing the table each time; the second fills
+ * the chairs left between.
+ */
+export function sideSeat(side: number): { column: number; isFar: boolean } {
+  const round = Math.floor(side / SIDE_COLUMNS)
+  const column = side % SIDE_COLUMNS
+  return { column, isFar: (column + round) % 2 === 0 }
+}
+
+/** The column of chair `index` (0 is the head, at no column). */
+export function columnOfChair(index: number): number {
+  return index <= 0 ? -1 : sideSeat(index - 1).column
+}
+
+/** Chairs along each side of a table whose chairs `indices` are taken: as many as the furthest of them needs. */
+export function columnsOf(indices: Iterable<number>): number {
+  let columns = 1
+  for (const index of indices) columns = Math.max(columns, columnOfChair(index) + 1)
+  return Math.min(SIDE_COLUMNS, columns)
+}
+
+/** Chairs along each side of a table that has `seats` in all, the head among them, taken in order. */
 export function columnsFor(seats: number): number {
-  return Math.max(1, Math.ceil((Math.min(TABLE_SEATS, seats) - 1) / 2))
+  return columnsOf([...Array(Math.max(0, Math.min(TABLE_SEATS, seats))).keys()])
 }
 
 /** The table top, for `columns` chairs along each side. */
@@ -79,15 +130,13 @@ export function tableRect(slot: number, columns: number): Rect {
 
 /**
  * Chair `index` of a slot's table: 0 is the head, facing along the table;
- * then the sides in turn, the far side (facing the camera) first.
+ * then the sides, in the checkerboard of `sideSeat`.
  */
 export function chairOf(slot: number, index: number): Place {
   const { x0 } = slotRect(slot)
   const { z } = slotCenter(slot)
   if (index <= 0) return { x: x0 + HEAD_X, z, yaw: FACE_RIGHT }
-  const side = index - 1
-  const column = Math.floor(side / 2)
-  const isFar = side % 2 === 0
+  const { column, isFar } = sideSeat(index - 1)
   return {
     x: x0 + TABLE_X + 0.15 + PITCH / 2 + column * PITCH,
     z: z + (isFar ? -CHAIR_OUT : CHAIR_OUT),
@@ -104,7 +153,7 @@ export function besideChair(chair: Place): Point {
 export function rugRect(slot: number, columns: number): Rect {
   const table = tableRect(slot, columns)
   const { x0 } = slotRect(slot)
-  return { x0: x0 + 0.12, z0: table.z0 - 0.8, x1: table.x1 + 0.35, z1: table.z1 + 0.8 }
+  return { x0: x0 + 0.12, z0: table.z0 - 0.8, x1: table.x1 + 0.12, z1: table.z1 + 0.8 }
 }
 
 // ---------------------------------------------------------------------------
@@ -124,7 +173,7 @@ export const BOARD_Z: readonly [number, number] = [-3.1, -1.7]
 export const ARMCHAIR: Rect = { x0: -HALF_W, z0: -0.85, x1: -HALF_W + 0.8, z1: -0.05 }
 export const SIDE_TABLE: Rect = { x0: -HALF_W, z0: 0.1, x1: -HALF_W + 0.5, z1: 0.6 }
 export const SOFA: Rect = { x0: -HALF_W, z0: 1.5, x1: -HALF_W + 0.85, z1: 3.9 }
-export const COFFEE_TABLE: Rect = { x0: -8.85, z0: 2.25, x1: -8.3, z1: 3.15 }
+export const COFFEE_TABLE: Rect = { x0: -HALF_W + 1.75, z0: 2.25, x1: -HALF_W + 2.3, z1: 3.15 }
 /** The window bar along the right wall, and its windows: z from and to. */
 export const BAR: Rect = { x0: HALF_W - 0.45, z0: -5.8, x1: HALF_W, z1: 0.6 }
 export const BAR_H = 0.95
@@ -149,11 +198,12 @@ export const DOOR = {
 
 /** Where the cat likes to sleep. */
 export const CAT_BEDS: readonly Point[] = [
-  { x: -9.15, z: 4.7 },
-  { x: 9.7, z: 1.6 },
+  { x: -HALF_W + 1.45, z: 4.7 },
+  { x: HALF_W - 1.5, z: 1.6 },
   { x: -4.9, z: -5.55 },
-  { x: -9.4, z: -3.35 },
+  { x: -HALF_W + 1.2, z: -3.35 },
   { x: 0.3, z: 6.25 },
+  { x: HALF_W - 1.4, z: -6.0 },
 ]
 
 export const SPOTS: readonly Spot[] = [
