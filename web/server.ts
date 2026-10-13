@@ -5,7 +5,7 @@
 //   CAFE_INGEST_KEY=… CAFE_VIEW_KEY=… bun web/server.ts
 //
 // Settings, all from the environment:
-//   CAFE_INGEST_KEY  the key reports must carry; web.json's `key` (16+ characters)
+//   CAFE_INGEST_KEY  the key reports must carry: the plugin's web_key setting (16+ characters)
 //   CAFE_VIEW_KEY    the password for the page; a different one (16+ characters)
 //   PORT             where it listens, 8080 by default; HOST, 0.0.0.0 by default
 //   TZ               the time zone times of day are shown in (Asia/Taipei, say)
