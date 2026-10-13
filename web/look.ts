@@ -4,10 +4,11 @@
 //
 // Pure: no server here.
 
+import type { Act } from '../hooks/describe'
 import { clip } from '../hooks/describe'
 import { wordsFor } from '../hooks/i18n'
 import { drawScene } from '../hooks/scene'
-import type { Phase } from '../hooks/tracker'
+import type { Kind, Phase } from '../hooks/tracker'
 import { TABLE_SEATS, arrangeAll, signatureOf, tableTitle } from '../hooks/view'
 import type { Hall } from './hall'
 import { MAX_DESKS, seatingOf } from './hall'
@@ -25,7 +26,12 @@ export type ViewLine = {
   key: string
   /** 0 for the main loop, 1 for its subagents, 2 for theirs. */
   depth: number
+  /** The main loop, a subagent or a teammate: the 3D café seats the main loop at the head of the table. */
+  kind: Kind
   phase: Phase
+  /** What kind of work it is, and the tool's name: what a guest of the 3D café goes and does. */
+  act: Act
+  tool: string
   label: string
   /** The subagent's task, quoted; `''` for a seat with none. */
   task: string
@@ -70,6 +76,8 @@ export type ViewOptions = {
   timeZone?: string | undefined
   /** False draws the picture still, for a page that asks for less motion. */
   hasMotion?: boolean
+  /** False leaves the picture out, for a page that draws the café in 3D itself. */
+  hasPicture?: boolean
 }
 
 /** The seats across the picture for a page that asks for `columns`, kept to what the picture can draw. */
@@ -93,7 +101,10 @@ export function viewOf(hall: Hall, now: number, options: ViewOptions): View {
   const snaps = seated.map(table => table.snap)
   const listed = arrangeAll(snaps, words, LIST_SEATS, MAX_DESKS)
   const pictured = arrangeAll(snaps, words, TABLE_SEATS, PICTURE_TABLES)
-  const scene = snaps.length === 0 ? undefined : drawScene(pictured, { columns, scale: 1, words, hasMotion: options.hasMotion !== false })
+  const scene =
+    snaps.length === 0 || options.hasPicture === false
+      ? undefined
+      : drawScene(pictured, { columns, scale: 1, words, hasMotion: options.hasMotion !== false })
 
   const tables = listed.tables.map((table, index): ViewTable => {
     const desk = seated[index]?.desk
@@ -108,7 +119,10 @@ export function viewOf(hall: Hall, now: number, options: ViewOptions): View {
       lines: table.places.map(place => ({
         key: place.key,
         depth: place.depth,
+        kind: place.seat.kind,
         phase: place.seat.phase,
+        act: place.seat.act,
+        tool: place.seat.tool,
         label: place.label,
         task: place.seat.task === '' ? '' : words.task(clip(place.seat.task, 44)),
         says: place.says,

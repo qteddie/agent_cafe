@@ -1,19 +1,19 @@
 # Agent Café ☕
 
-把你 Claude 裡的每一個 agent——主 agent 和它交辦出去的所有 subagent——請進一間像素風咖啡廳，一眼看出誰正在做什麼、誰做完了、誰在等你。
+把你 Claude 裡的每一個 agent——主 agent 和它交辦出去的所有 subagent——請進一間咖啡廳，一眼看出誰正在做什麼、誰做完了、誰在等你。
 
 有兩種看法：
 
 | | 在哪裡看 | 看得到哪些 session |
 | :- | :- | :- |
-| **pane**（`/cafe`） | 桌面 App 的 Code 分頁（本機 session）、終端機 | 這台電腦上載入了這個 mod 的 session |
-| **網頁版** | 瀏覽器、手機，開在你自己的網域上 | Code 的本機 session、終端機，加上 **Claude App 裡的任務**（要多做兩步設定，見[網頁版](#網頁版在瀏覽器看所有-session)） |
+| **pane**（`/cafe`） | 桌面 App 的 Code 分頁（本機 session）、終端機。像素風的平面圖 | 這台電腦上載入了這個 mod 的 session |
+| **網頁版** | 瀏覽器、手機，開在你自己的網域上。**滿版的 3D 咖啡廳**（three.js），英文介面，裡面的人會自己走動 | Code 的本機 session、終端機，加上 **Claude App 裡的任務**（要多做兩步設定，見[網頁版](#網頁版在瀏覽器看所有-session)） |
 
-![網頁版：三個 session 同時在工作](docs/web.png)
+![網頁版：滿版的 3D 咖啡廳，五個 session 同時在工作](docs/web.png)
 
-> 這張是網頁版的實際截圖：三個真的 Claude Code session（模型換成本機的腳本替身）同時回報到本機架起的伺服器，在 Chromium 裡看到的樣子。一桌在終端機等你批准、一桌是用 Claude App 任務的方式回報（subagent 再開 subagent）、一桌是 Code 桌面 session。
+> 這張是網頁版在 Chromium 裡的截圖（軟體算圖的 WebGL）。回報給它的是一支模擬 session 的腳本：五個 session、十幾個 agent 隨機換著做事，所以畫面上的狀態比真的 session 換得更快。
 
-每個 agent 一個座位，頭上的泡泡是它正在做的事，名牌寫著細節。名牌很小，放不下的字會截掉，完整的寫在旁邊（網頁）或底下（pane）的清單裡：
+每個 agent 是一個小人，頭上的泡泡是它正在做的事，名牌寫著細節。pane 裡名牌放不下的字會截掉，完整的寫在底下的清單裡；網頁版點一下那個人，左上角會出現它的單子。泡泡的意思兩邊一樣：
 
 | 你會看到 | 意思 |
 | :- | :- |
@@ -29,7 +29,7 @@
 | 紅色叉叉 | 出錯了 |
 | 黑板上的三個數字 | 綠：忙　黃：等你　灰：閒 |
 
-清單裡多了經過時間和工具呼叫次數；subagent 交辦出去的 subagent 會縮排在它底下。網頁上有人在等你的那一桌會排在最前面、單子角落插一面黃旗，分頁標題也會變成 `(1) Agent Café`。
+pane 的清單裡多了經過時間和工具呼叫次數；subagent 交辦出去的 subagent 會縮排在它底下。網頁版有人在等你的時候，分頁標題會變成 `(1) Agent Café`。
 
 ## 目前狀態
 
@@ -37,7 +37,8 @@
 
 實際驗證過的：
 
-- `claude plugin validate --strict` 通過、TypeScript 型別檢查通過、`claude plugin test` **200 個測試**全過（在 Claude Code 自己的測試環境裡跑）。網頁版用到的事件格式，是從真的 session 錄下來的（`tests/runs.ts`）。
+- `claude plugin validate --strict` 通過、TypeScript 型別檢查通過、`claude plugin test` **218 個測試**全過（在 Claude Code 自己的測試環境裡跑）。網頁版用到的事件格式，是從真的 session 錄下來的（`tests/runs.ts`）。
+- **3D 網頁**：在 Chromium（軟體算圖的 WebGL）裡用桌面（1440×900）和手機寬度（390×844）看過，接的是模擬 session 的腳本：入座、走去書架和白板、端咖啡去沙發和窗邊吧台、做完從門口離開、新的從門口進來、點人出現單子、加貓加狗和重新整理後還在，都試過。還沒在有獨立顯示卡的電腦、Safari 和真的手機上看過。
 - **桌面 App**：你在 Code 分頁的本機 session 打開過，pane 裡的圖、清單和圖例都有出來。
 - 在**真正的 Claude Code session** 裡跑過（Linux、隔離的設定資料夾；模型換成本機的腳本替身，所以沒有用到真的模型或額度）。headless（`claude -p`）和互動式終端機都有，情境包含：主 agent 思考與呼叫工具、前景／背景 subagent、subagent 再開 subagent、執行失敗、權限詢問、手動停掉背景 agent、`/clear`、hot reload、兩個 session 同時開。
 - **網頁版**：伺服器在本機用 Bun 跑；三種回報方式（mod 整桌回報、只有 hooks 逐筆回報、兩者並存）都用真的 session 接過，加上一個停在權限詢問的互動式 session；網頁在 Chromium 裡用桌面和手機寬度看過，中英文都有；伺服器重開後網頁會自己連回去；登入的次數限制、偽造的通行證、跨站的表單都試過會被擋。
@@ -124,9 +125,35 @@ pane 裡的圖若是空白、破圖或一直閃，把 `motion` 選項關掉（�
 
 ## 網頁版：在瀏覽器看所有 session
 
-每個 session 把「誰在做什麼」送到你網域上的一個小伺服器，伺服器把所有 session 畫進同一間咖啡廳，瀏覽器打開就會即時更新，要輸入密碼才看得到。手機也能看：
+每個 session 把「誰在做什麼」送到你網域上的一個小伺服器，伺服器把所有 session 放進同一間 3D 咖啡廳，瀏覽器打開就會即時更新，要輸入密碼才看得到。手機也能看（直的螢幕會從門那一側看進去，咖啡廳的長邊剛好直著放）：
 
 <img src="docs/web-phone.png" alt="手機上的網頁版" width="300">
+
+### 3D 咖啡廳裡發生的事
+
+整個頁面就是咖啡廳（滿版），介面是英文。每個 session 一張長桌：主 agent 坐在桌頭，subagent 坐兩側，人越多桌子越長；桌子前面的木牌寫著 session 的名字和它在哪個 App。最多 9 桌、每桌 12 個人。
+
+每個人會照它的 agent 在做的事自己走動：
+
+| agent 在做的事 | 咖啡廳裡的人 |
+| :- | :- |
+| 改檔案、執行指令、上網、用其他工具 | 坐在自己的位子上打筆電 |
+| 讀檔案、搜尋 | 走到左邊的書架前看書、拿放大鏡找 |
+| 整理待辦（TodoWrite 之類） | 走到軟木板前貼便條 |
+| 思考中 | 手托下巴；想超過 8 秒會站起來在桌邊踱步 |
+| 交辦給 subagent | 在自己的 subagent 背後看它們工作 |
+| **等你**（批准、問題、計畫） | 站在位子旁邊，面向你揮手，名牌變黃 |
+| 休息中 | 去吧台拿咖啡，然後隨意：坐沙發、坐窗邊吧台、坐空著的小圓桌、逛書架、摸貓摸狗、走走 |
+| 主 agent 等 subagent 回報 | 端著咖啡坐在桌頭，不時走到 subagent 背後看看 |
+| 做完了 | 歡呼一下，從右邊的門走出去 |
+| 出錯了 | 趴在桌上，筆電螢幕變紅 |
+
+新的 agent 從門口走進來；狀態一秒換好幾次的 agent 不會一直來回跑：要持續一下子才會起身，走到書架或軟木板的人也會待上幾秒再回座。等你、做完、出錯和新的一輪會立刻反應。
+
+- **滑鼠**：拖曳旋轉、滾輪縮放；手機用一指旋轉、兩指縮放。右下角 `Whole room` 回到全景。
+- **點一個人**：左上角出現它的單子：哪一桌、在做什麼、做了多久、用了幾次工具；Claude App 的任務還有 `Open` 可以打開那個任務。點地板或按 Esc 關掉。
+- **貓和狗**：左下角 `Cats − +`、`Dogs − +` 可以加減，各最多 8 隻，每一隻的毛色固定。貓大多在睡覺，偶爾換個地方睡；狗會到處跑、坐下、趴著睡，也會跑去休息中的人旁邊坐。休息中的人會去摸牠們。加的貓狗從門口進來，減掉的從門口回家。數量記在這個瀏覽器裡（`localStorage`），不會同步到別的裝置。
+- 系統設定了「減少動態效果」的話，人不會走動，直接出現在該在的地方。
 
 ### 哪些 session 會出現在網頁上
 
@@ -223,7 +250,7 @@ curl -s https://cafe.你的網域/healthz        # ok
 
 - 兩把鑰匙分開：回報鑰匙（在 `web.json` 裡，也在上傳的 zip 裡，Claude 在任務裡讀得到）只能**寫入**咖啡廳，不能看；看網頁要另一把密碼。
 - 密碼打錯：同一個位址 15 分鐘內 8 次、所有人加起來 40 次之後，暫時不再接受登入（已經登入的瀏覽器不受影響）。
-- 網頁上所有 session 送來的字都當成純文字放進頁面，圖是一張不能執行任何東西的圖片；頁面有嚴格的 CSP。
+- 網頁上所有 session 送來的字都當成純文字放進頁面（名牌和單子用 `textContent`，黑板上的字畫在 canvas 上）；頁面有嚴格的 CSP，three.js 打包在 `/cafe3d.js` 裡從自己的伺服器送出，不連任何 CDN。
 - `compose.yaml` 只在 `127.0.0.1` 開 port，外面要經過 tunnel 才進得來。
 
 ### 網頁版已知的限制
@@ -234,12 +261,15 @@ curl -s https://cafe.你的網域/healthz        # ok
 - 被你按 Esc 打斷的那一輪不會有結束事件，主 agent 會顯示還在忙，直到大約一分鐘後 Claude Code 發出「等你輸入」的通知。
 - 回報程式（`scripts/report.mjs`）需要 Node 18.17 以上；Claude App 任務那種要經過代理的環境需要 Node 22.21 以上（任務裡目前是 22.22）。你的 Mac 上沒有 `node` 也沒關係，Code 的 session 由 mod 回報。
 - teammate（agent teams）在網頁上會當成一般的 subagent，主 agent 一輪結束時可能被當成已完成。
+- **3D 需要 WebGL**：瀏覽器關掉硬體加速或不支援 WebGL 的時候，頁面只會說畫不出來，沒有平面版可以退回（平面的像素圖還在 pane 裡）。
+- 3D 的咖啡廳最多畫 9 桌、每桌 12 個人；超過的只算進右上角的數字。
+- 網頁預設是英文，網址加 `?lang=zh-TW` 會換成中文並記住（頁面上沒有切換的按鈕）。
 
 ## 設定
 
 | 選項 | 預設 | 作用 |
 | :- | :- | :- |
-| `language` | `zh-TW` | pane 文字的語言：`zh-TW` 或 `en`（網頁右上角可以切換） |
+| `language` | `zh-TW` | pane 文字的語言：`zh-TW` 或 `en`（網頁版一律是英文，見[網頁版已知的限制](#網頁版已知的限制)） |
 | `share_sessions` | `true` | 讓這台電腦上其他 session 的 agent 也在 pane 裡入座。關掉後這個 session 不讀也不寫共用的資料 |
 | `motion` | `true` | pane 圖片的動畫。關掉後是一張靜態圖片 |
 
@@ -294,15 +324,21 @@ curl -s https://cafe.你的網域/healthz        # ok
 cd ~/Projects/agent-cafe
 
 claude plugin validate .      # Claude Code 從這個 mod 讀到什麼
-claude plugin test            # 跑 tests/ 裡的 200 個測試，不需要開 session 或登入
+claude plugin test            # 跑 tests/ 裡的 218 個測試，不需要開 session 或登入
 npx tsc -p .                  # 型別檢查（要先載入過一次）
 
 # 網頁版（需要 Bun）
 CAFE_INGEST_KEY=$(openssl rand -hex 24) CAFE_VIEW_KEY=$(openssl rand -hex 24) bun web/server.ts
 bun build web/report.ts --target=node --format=esm --outfile=scripts/report.mjs   # 改了回報程式之後
+
+# 3D 咖啡廳（web/cafe3d/ 裡的 TypeScript，打包成 web/public/cafe3d.js）
+cd web && bun install                                   # three.js 和型別，只在開發時需要
+node_modules/.bin/tsc -p cafe3d/tsconfig.json           # 型別檢查
+bun run build:3d                                        # 改了 cafe3d/ 之後重新打包
 ```
 
 - `scripts/report.mjs` 是從 `web/report.ts`（加上 `hooks/wire.ts`、`hooks/describe.ts`）build 出來的，改了那幾個檔要重新 build；`tools/pack.sh` 在有 Bun 的時候會自動做。
+- `web/public/cafe3d.js` 也是 build 出來、放進 git 的（約 650 KB，gzip 後約 170 KB），所以架網站和 Docker 都不需要 `bun install`。伺服器送它的時候會壓縮、帶 ETag，瀏覽器沒變就不重新下載。
 - Claude Code 每次從資料夾載入這個 mod，都會把**你那個版本**的型別寫到 `.claude-plugin/types/`（已列在 `.gitignore`）。
 - debug log 裡找 `agent-cafe`。mod 自己出狀況時會寫一行 `could not keep up: …`。
 
@@ -322,9 +358,15 @@ bun build web/report.ts --target=node --format=esm --outfile=scripts/report.mjs 
 | `web/server.ts` | 網頁伺服器：收回報、登入、即時推送 |
 | `web/hall.ts` | 伺服器的記憶：所有 session，把 hooks 事件拼回座位表 |
 | `web/look.ts`、`web/page.ts`、`web/words.ts`、`web/public/` | 網頁的內容、HTML、文字、瀏覽器端的程式和樣式 |
+| `web/cafe3d/main.ts` | 3D 咖啡廳的入口：相機、算圖、每一桌和每一個人、點選 |
+| `web/cafe3d/layout.ts`、`web/cafe3d/nav.ts` | 房間裡每樣東西的位置；人和貓狗怎麼繞過家具找路（A*） |
+| `web/cafe3d/mind.ts`、`web/cafe3d/guest.ts` | agent 的狀態讓那個人想做什麼、去哪裡、在那裡做什麼 |
+| `web/cafe3d/person.ts`、`web/cafe3d/pets.ts`、`web/cafe3d/room.ts` | 方塊小人和它的動作；貓和狗；咖啡廳本身 |
+| `web/cafe3d/kit.ts`、`web/cafe3d/tags.ts` | 合併方塊、canvas 畫的材質（地板、泡泡）；疊在畫面上的名牌 |
+| `web/package.json` | 3D 咖啡廳的開發工具：three.js、型別、打包指令 |
 | `web/Dockerfile`、`web/compose.yaml`、`web/.env.example` | 部署 |
 | `tools/pack.sh` | 打包成上傳到 Claude 帳號用的 zip |
-| `tests/` | `cafe.test.ts` 對著 Claude Code 測整個 mod；`runs.ts` 是錄下來的真實事件；其他檔案各測一個模組 |
+| `tests/` | `cafe.test.ts` 對著 Claude Code 測整個 mod；`runs.ts` 是錄下來的真實事件；`stage.test.ts` 測 3D 咖啡廳的配置、找路和行為；其他檔案各測一個模組 |
 
 所有的 hook 都只是「看」：把事件原封不動交給下一手，自己出錯也會吞掉，不會讓工具呼叫因為它而失敗。回報程式在背景執行，不會讓 Claude 等它；只有每一輪結束和 session 結束時那一筆會等最多 2 秒，讓它在 session 關掉前送出。網頁伺服器卡住時，回報程式會停 15 秒再試，不會越積越多。
 
@@ -333,7 +375,8 @@ bun build web/report.ts --target=node --format=esm --outfile=scripts/report.mjs 
 - Code 分頁 Cloud session 的回報：一個 repo 層級的設定範本。
 - 有人等你的時候讓手機跳通知。
 - 終端機也畫圖（`Raster` 元件）。
-- 點座位看那個 agent 的對話。
+- 點一個人看那個 agent 的對話。
+- 讓貓狗的數量存在伺服器上，所有裝置共用。
 
 ## 分享給別人
 

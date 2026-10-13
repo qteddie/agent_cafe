@@ -1,11 +1,10 @@
 // The web page's two documents: the café, and the door (a password, before
-// the café). Their content comes in afterwards, from /events, and app.js
-// draws it; what is here is the frame and the words app.js needs.
+// the café). Their content comes in afterwards, from /events, and app.js and
+// cafe3d.js draw it; what is here is the frame and the words they need.
 //
 // Pure: no server here.
 
 import type { Words } from '../hooks/i18n'
-import { MARKS } from '../hooks/view'
 import type { PageWords } from './words'
 
 /** Text made safe inside HTML, in text and in attribute values alike. */
@@ -38,63 +37,69 @@ function head(page: PageWords, title: string): string {
   )
 }
 
+/** The control that adds a cat or a dog, and lets one go home. */
+function petControl(kind: 'cat' | 'dog', name: string, fewer: string, more: string): string {
+  return (
+    `<span class="pet-kind">` +
+    `<span class="pet-name">${escapeHtml(name)}</span>` +
+    `<button type="button" class="pet-step" data-kind="${kind}" data-step="-1" aria-label="${escapeHtml(fewer)}" title="${escapeHtml(fewer)}">−</button>` +
+    `<span class="pet-count" data-kind="${kind}" aria-live="polite">0</span>` +
+    `<button type="button" class="pet-step" data-kind="${kind}" data-step="1" aria-label="${escapeHtml(more)}" title="${escapeHtml(more)}">+</button>` +
+    '</span>'
+  )
+}
+
 /** The words app.js says things with. */
 function wordsForClient(words: Words, page: PageWords): Record<string, unknown> {
   return {
     lang: page.lang,
+    title: words.title,
     live: page.live,
     retrying: page.retrying,
     open: page.open,
-    viaMod: page.viaMod,
-    viaHooks: page.viaHooks,
-    offPicture: page.offPicture,
+    close: page.close,
     asking: page.asking,
+    resetView: page.resetView,
+    stageHint: page.stageHint,
     tally: page.lang === 'en' ? ['{b} busy', '{a} waiting for you', '{i} resting'] : ['{b} 位在忙', '{a} 位等你', '{i} 位休息中'],
-    title: words.title,
   }
 }
 
-/** The café: the chalkboard, the window with the picture, the tickets. */
+/**
+ * The café: the room in 3D, filling the window, and over it no more than the
+ * tally, whether it is live, the way out, the café's cats and dogs, and the
+ * card of a guest clicked.
+ * /cafe3d.js draws the room; app.js brings it what /events says.
+ */
 export function cafePage(words: Words, page: PageWords): string {
-  const [think, work, held, idle] = words.legend
-  const other = page.lang === 'en' ? 'zh-TW' : 'en'
   return (
     head(page, words.title) +
+    '<script src="/cafe3d.js" defer></script>' +
     '<script src="/app.js" defer></script>' +
     '</head>' +
-    `<body data-lang="${page.lang}">` +
-    '<header class="board">' +
-    '<div class="sign">' +
-    `<h1>${escapeHtml(words.title)}</h1>` +
-    `<p class="tagline">${escapeHtml(page.tagline)}</p>` +
-    '</div>' +
+    `<body class="cafe" data-lang="${page.lang}">` +
+    `<h1 class="sr-only">${escapeHtml(words.title)}</h1>` +
+    '<main class="stage" id="stage" role="img"></main>' +
+    '<header class="hud">' +
     '<p class="tally" id="tally" aria-live="polite"></p>' +
-    '<div class="tools">' +
     `<span class="live" id="live" data-state="wait">${escapeHtml(page.retrying)}</span>` +
-    `<a class="lang" href="/?lang=${other}" lang="${other === 'en' ? 'en' : 'zh-Hant'}">${escapeHtml(page.other)}</a>` +
-    '</div>' +
-    '</header>' +
-    '<main class="room">' +
-    '<figure class="window" id="window">' +
-    '<img id="scene" alt="" hidden>' +
-    '<figcaption class="empty" id="empty" hidden>' +
-    `<strong>${escapeHtml(page.empty)}</strong>` +
-    `<span>${escapeHtml(page.emptyHint)}</span>` +
-    '</figcaption>' +
-    '</figure>' +
-    '<section class="rail" id="rail" aria-label="sessions"></section>' +
-    '</main>' +
-    '<footer class="foot">' +
-    '<p class="legend">' +
-    `<span class="mark" data-phase="think">${MARKS.think}</span> ${escapeHtml(think)}` +
-    `<span class="mark" data-phase="work">${MARKS.work}</span> ${escapeHtml(work)}` +
-    `<span class="mark" data-phase="ask">${MARKS.ask}</span> ${escapeHtml(held)}` +
-    `<span class="mark" data-phase="idle">${MARKS.idle}</span> ${escapeHtml(idle)}` +
-    '</p>' +
     '<form method="post" action="/logout">' +
     `<button type="submit" class="out">${escapeHtml(page.signOut)}</button>` +
     '</form>' +
-    '</footer>' +
+    '</header>' +
+    `<div class="pets" id="pets" role="group" aria-label="${escapeHtml(page.pets)}">` +
+    petControl('cat', page.cats, page.fewerCats, page.moreCats) +
+    petControl('dog', page.dogs, page.fewerDogs, page.moreDogs) +
+    '</div>' +
+    '<aside class="card" id="card" hidden></aside>' +
+    '<div class="notice" id="empty" hidden>' +
+    `<strong>${escapeHtml(page.empty)}</strong>` +
+    `<span>${escapeHtml(page.emptyHint)}</span>` +
+    '</div>' +
+    '<div class="notice" id="nostage" hidden>' +
+    `<strong>${escapeHtml(page.noStage)}</strong>` +
+    `<span>${escapeHtml(page.noStageHint)}</span>` +
+    '</div>' +
     `<script type="application/json" id="words">${scriptJson(wordsForClient(words, page))}</script>` +
     '</body></html>'
   )
