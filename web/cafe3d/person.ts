@@ -398,9 +398,10 @@ export class Body {
     this.head.rotation.set(joints.headX, joints.headY, joints.headZ)
     this.upper.rotation.set(joints.lean, joints.turn, 0)
     this.body.position.y = this.seatLift + joints.lift
-    // Seated, the hips sit back on the seat, as far back as what it wears allows.
-    // Slumped forward over the table, its back is clear of the chair whatever it wears: it sits where everyone used to.
-    this.body.position.z = this.isSeated ? (this.pose === 'slump' ? -0.04 : this.seat) : 0
+    // Seated, the hips sit back on the seat, as far back as what it wears allows; slumped forward over the
+    // table, where everyone used to (its back is clear of the chair then). They ease there like the joints.
+    const back = this.isSeated ? (this.pose === 'slump' ? -0.04 : this.seat) : 0
+    this.body.position.z += (back - this.body.position.z) * ease
     // A cup, a magnifier or a note stays upright whatever the arm does.
     this.cup.rotation.x = -joints.armRx - joints.lean
     this.lens.rotation.x = -joints.armRx - 0.4

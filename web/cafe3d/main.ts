@@ -908,9 +908,17 @@ class Cafe3D implements World, PetWorld, Stage {
         const turn = a.isGoing && b.isGoing ? 0 : KEEP_RIGHT
         const rx = nx * Math.cos(turn) + nz * Math.sin(turn)
         const rz = nz * Math.cos(turn) - nx * Math.sin(turn)
-        // A guest standing at its place keeps it: only a walker steps aside, or two standing in each other.
+        // A guest standing at its place keeps it: only a walker steps aside (brushing past it for a moment
+        // if its way runs right through that place), or two standing in each other.
         const isBothStanding = a.isStanding && b.isStanding
-        const give = (guest: Guest): number => (guest.isWalking ? push : isBothStanding ? Math.min(push, 0.6 * dt) : 0)
+        // At the door, two on their way out go one after the other: the one further on keeps going, the
+        // other is held back behind it by no more than half a step (so it only slows down).
+        const first = a.isGoing && b.isGoing && Math.min(a.x, b.x) > DOOR.inside.x - 1 ? (a.x >= b.x ? a : b) : undefined
+        const give = (guest: Guest): number => {
+          if (guest === first) return 0
+          if (guest.isWalking) return first === undefined ? push : Math.min(push, 0.8 * dt)
+          return isBothStanding ? Math.min(push, 0.6 * dt) : 0
+        }
         add(a, -rx * give(a), -rz * give(a))
         add(b, rx * give(b), rz * give(b))
       }
