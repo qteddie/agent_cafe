@@ -13,7 +13,7 @@
 
 ![網頁版：滿版的 3D 咖啡廳，五個 session 同時在工作](docs/web.png)
 
-> 這張是網頁版在 Chromium 裡的截圖（軟體算圖的 WebGL）。回報給它的是一支模擬 session 的腳本：五個 session、十幾個 agent 隨機換著做事，所以畫面上的狀態比真的 session 換得更快。
+> 這張是網頁版在 Chromium 裡的截圖（軟體算圖的 WebGL）。回報給它的是一支模擬 session 的腳本（沒有放在 repo 裡）：五個 session、十幾個 agent 隨機換著做事，所以畫面上的狀態比真的 session 換得更快。
 
 每個 agent 是一個小人，頭上的泡泡是它正在做的事，名牌寫著細節。pane 裡名牌放不下的字會截掉，完整的寫在底下的清單裡；網頁版點一下那個人，會出現它的單子。泡泡的意思兩邊一樣：
 
@@ -49,7 +49,7 @@ pane 的清單裡多了經過時間和工具呼叫次數；subagent 交辦出去
 claude plugin install agent-cafe --marketplace qteddie/agent_cafe
 ```
 
-（Claude Code 比 v2.1.275 舊的話，先加 marketplace：`/plugin marketplace add qteddie/agent_cafe`，再 `/plugin install agent-cafe@agent-cafe`。）
+（你的 Claude Code 不認得 `--marketplace` 的話，先加 marketplace：`/plugin marketplace add qteddie/agent_cafe`，再 `/plugin install agent-cafe@agent-cafe`。）
 
 開一個新的 session，輸入 `/cafe`。
 
@@ -58,8 +58,8 @@ claude plugin install agent-cafe --marketplace qteddie/agent_cafe
 ### 不安裝，先試試看
 
 ```bash
-git clone https://github.com/qteddie/agent_cafe ~/Projects/agent-cafe
-claude --plugin-dir ~/Projects/agent-cafe
+git clone https://github.com/qteddie/agent_cafe ~/agent_cafe
+claude --plugin-dir ~/agent_cafe
 ```
 
 只對這一次的 session 有效。桌面 App 啟動 session 時沒辦法加參數，要從 clone 下來的資料夾載入的話，在 `~/.claude/settings.json` 設定 `CLAUDE_CODE_PLUGIN_DIRS`（和你原有的設定合併），再到 Code 分頁開一個 **Local** 的新 session：
@@ -67,10 +67,12 @@ claude --plugin-dir ~/Projects/agent-cafe
 ```json
 {
   "env": {
-    "CLAUDE_CODE_PLUGIN_DIRS": "~/Projects/agent-cafe"
+    "CLAUDE_CODE_PLUGIN_DIRS": "~/agent_cafe"
   }
 }
 ```
+
+這樣載入時，外掛的 id 是 `agent-cafe@inline`，不是 `agent-cafe@agent-cafe`：下面的 `claude plugin configure` 指令要改用這個 id。
 
 ### 確認有沒有載入
 
@@ -135,6 +137,8 @@ Claude App 的任務 ──────（外掛的 hooks：逐筆送事件）�
 
 大家會盡量坐得分散：第一桌放在咖啡廳正中間，之後每一桌都挑離其他桌最遠的空位（兩桌以上會先放四個角落）；同一桌的 subagent 照棋盤格入座，一個坐對面、下一個隔一個位子換邊，先把整張桌子坐開，才會有人坐隔壁。
 
+每個 agent 都是不一樣的人，每次來都長一樣：髮型、帽子、眼鏡、鬍子、衣服和身高都由那個 agent 決定。每個 session 的主 agent 穿 Claude 的橘色，其他人都不穿橘色。
+
 每個人會照它的 agent 在做的事自己走動：
 
 | agent 在做的事 | 咖啡廳裡的人 |
@@ -152,14 +156,14 @@ Claude App 的任務 ──────（外掛的 hooks：逐筆送事件）�
 
 新的 agent 從門口走進來；狀態一秒換好幾次的 agent 不會一直來回跑：要持續一下子才會起身，走到書架或軟木板的人也會待上幾秒再回座。等你、做完、出錯和新的一輪會立刻反應。
 
-- **看**：滑鼠拖曳旋轉、滾輪縮放；手機用一指旋轉、兩指縮放。右下角 `Whole room` 回到全景。
-- **點一個人**：左上角出現它的單子：哪一桌、在做什麼、做了多久、用了幾次工具；Claude App 的任務還有 `Open` 可以打開那個任務。點地板或按 Esc 關掉。
-- **貓和狗**：左下角 `Cats − +`、`Dogs − +` 可以加減，各最多 8 隻，每一隻的毛色和名字固定（貓叫 Mochi、Miso、Luna……，狗叫 Biscuit、Latte、Mango……）。貓大多在睡覺，偶爾換個地方睡；狗會到處跑、坐下、趴著睡，也會跑去休息中的人旁邊坐。休息中的人會去摸牠們。加的貓狗從門口進來，減掉的從門口回家。數量記在這個瀏覽器裡。
+- **看**：滑鼠拖曳旋轉、滾輪縮放；手機用一指旋轉、兩指縮放。右下角 `Whole room`（中文介面是 `回到全景`）回到全景。
+- **點一個人**：左上角出現它的單子：哪一桌、在做什麼、做了多久、用了幾次工具；Claude App 的任務還有 `Open`（`開啟`）可以打開那個任務。點地板或按 Esc 關掉。
+- **貓和狗**：左下角 `Cats − +`、`Dogs − +`（中文介面是 `貓`、`狗`）可以加減，各最多 8 隻，每一隻的毛色和名字固定（貓叫 Mochi、Miso、Luna……，狗叫 Biscuit、Latte、Mango……）。貓大多在睡覺，偶爾換個地方睡；狗會到處跑、坐下、趴著睡，也會跑去休息中的人旁邊坐。休息中的人會去摸牠們。加的貓狗從門口進來，減掉的從門口回家。數量記在這個瀏覽器裡。
 - **跟貓狗玩**：滑鼠移到牠身上會出現名字。點一下，牠會醒來、開心地跳一下、冒出愛心，說 `Woof!` 或 `Meow~`，腳下出現粉紅色的圈，表示選到了。選到之後點地板：
   - 狗：往那裡丟一顆球，牠會跑去撿，叼回來放在靠近你（鏡頭）的地方，再坐下搖尾巴。
   - 貓：叫牠過來。貓不一定理你，大約三次有一次只回你 `…`。
   - 點別的人、按 Esc，或 45 秒沒理牠，就取消選取。
-- **音樂**：左下角 `♪ Music` 會放很 chill 的 lo-fi 咖啡廳音樂：電鋼琴、貝斯、顫音琴、刷子鼓和一點黑膠的沙沙聲。音樂是瀏覽器當場用 Web Audio 做出來的，沒有音檔也不用串流，每次都不太一樣。預設是關的，打開後旁邊的滑桿可以調音量。開關和音量記在這個瀏覽器裡；上次開著的話，你在頁面上點第一下時會自己接著放（瀏覽器不讓頁面在那之前出聲）。
+- **音樂**：左下角 `♪ Music`（`♪ 音樂`）會放很 chill 的 lo-fi 咖啡廳音樂：電鋼琴、貝斯、顫音琴、刷子鼓和一點黑膠的沙沙聲。音樂是瀏覽器當場用 Web Audio 做出來的，沒有音檔也不用串流，每次都不太一樣。預設是關的，打開後旁邊的滑桿可以調音量。開關和音量記在這個瀏覽器裡；上次開著的話，你在頁面上點第一下時會自己接著放（瀏覽器不讓頁面在那之前出聲）。
 - 系統設定了「減少動態效果」的話，人不會走動，直接出現在該在的地方。
 
 ### 哪些 session 會出現在網頁上
@@ -177,17 +181,18 @@ Claude App 的任務 ──────（外掛的 hooks：逐筆送事件）�
 
 伺服器在 `web/` 裡，用 Docker 跑，只需要一台開著的機器裝了 Docker（你自己的筆電開著 Docker Desktop 也可以）。
 
-1. 做兩把不同的鑰匙：
+1. 做兩把不同的鑰匙，每把至少 16 個字元（不然伺服器不會啟動，`docker compose logs cafe` 會寫原因）：
 
    ```bash
    openssl rand -hex 24   # 回報用：CAFE_INGEST_KEY
    openssl rand -hex 24   # 看網頁的密碼：CAFE_VIEW_KEY
    ```
 
-2. 填進去並啟動。在 repo 的 `web/` 資料夾裡執行（`compose.yaml` 在那裡）：
+2. 填進去並啟動。在 repo 的 `web/` 資料夾裡執行（`compose.yaml` 在那裡；已經 clone 過就不用再 clone）：
 
    ```bash
-   git clone https://github.com/qteddie/agent_cafe && cd agent_cafe/web
+   git clone https://github.com/qteddie/agent_cafe ~/agent_cafe
+   cd ~/agent_cafe/web
    cp .env.example .env      # 填入兩把鑰匙，和你的時區（TZ，例如 Asia/Taipei）
    docker compose up -d --build
    ```
@@ -205,7 +210,7 @@ Claude Code 和網頁在同一台機器上的話，這樣就夠了。想用手�
    - 是 `http`，不是 `https`。伺服器本身不處理 https，填 `https://…` 會得到 502。你的網域對外還是 https，那一段由 Cloudflare 負責。
 4. 打開 `https://cafe.example.com`。
 
-不用 Cloudflare 的話，在 `127.0.0.1:8080` 前面接你自己的反向代理（Caddy、nginx）加上 https。不用 Docker 的話，伺服器用 [Bun](https://bun.sh) 跑：`CAFE_INGEST_KEY=… CAFE_VIEW_KEY=… bun web/server.ts`。
+不用 Cloudflare 的話，在 `127.0.0.1:8080` 前面接你自己的反向代理（Caddy、nginx）加上 https。不用 Docker 的話，伺服器用 [Bun](https://bun.sh) 在 clone 下來的資料夾裡跑：`HOST=127.0.0.1 CAFE_INGEST_KEY=… CAFE_VIEW_KEY=… bun web/server.ts`（不加 `HOST` 的話，它會在這台機器的每一個網路上開著）。
 
 ### 2. 讓 session 回報
 
@@ -224,20 +229,20 @@ echo '{"web_url": "https://cafe.example.com", "web_key": "<你的 CAFE_INGEST_KE
 { "url": "https://cafe.example.com", "key": "<你的 CAFE_INGEST_KEY>" }
 ```
 
-兩個都有的時候，以設定為準。
+設定了 `web_url` 之後，就不會再讀 `web.json`。
 
 ### 3. 讓 Claude App 的任務也回報（選用）
 
-Claude App 的任務跑在 Anthropic 的雲端，讀不到你的設定和資料夾，所以要兩件事：
+Claude App 的任務跑在 Anthropic 的雲端，讀不到你的設定和資料夾，也連不到你的 `localhost`：網頁要先放在公開的 https 網址上（上面的 tunnel，或你自己的反向代理）。然後要兩件事：
 
-1. **把帶著網址和鑰匙的外掛上傳到你的 Claude 帳號**。在 clone 下來的資料夾寫好上面的 `web.json`，然後：
+1. **把帶著網址和鑰匙的外掛上傳到你的 Claude 帳號**。在 clone 下來的資料夾寫好上面的 `web.json`，然後（需要 `zip`）：
 
    ```bash
    sh tools/pack.sh          # 做出 dist/agent-cafe.zip，裡面帶著 web.json
    ```
 
    在 Claude App 的 **自訂（Customize）→ Plugins → Add → Upload plugin** 上傳這個 zip，之後開的任務會自動帶著它。這個 zip 裡有你的回報鑰匙，只上傳到你自己的帳號，不要分享。
-2. **讓任務連得到你的網域**：任務的網路預設只能連 GitHub、npm 這類網站，其他網域會回 403。到 Claude 的 **Settings → Capabilities**，在 code execution 的網路存取設定裡允許你的網域（有「額外允許的網域」就加這一個；只有開關的話，要允許所有網域才行）。Team／Enterprise 方案由管理員在組織設定裡改。改完要開**新的**任務才生效。確認方式：在新任務裡請 Claude 執行 `curl -sI https://cafe.example.com/healthz`，回 `200` 就通了，回 `403` 就是還被擋。
+2. **讓任務連得到你的網域**：任務的網路預設只能連 GitHub、npm 這類網站，其他網域會回 403。到 Claude 的 **Settings → Capabilities**，在 code execution 的網路存取設定裡允許你的網域（有「額外允許的網域」就加這一個；只有開關的話，要允許所有網域才行）。Team／Enterprise 方案由管理員在組織設定裡改。改完要開**新的**任務才生效。確認方式：在新任務裡請 Claude 執行 `curl -sS https://cafe.example.com/healthz`，回 `ok` 就通了，回 403（`CONNECT tunnel failed, response 403`）就是還被擋。
 
 Claude App 的任務沒有資料夾名稱可以當桌名，網頁上會顯示成 `Claude · 14:05`（App 和入座的時間），單子上的 `Open` 連到那個任務。
 
@@ -264,7 +269,7 @@ curl -s https://cafe.example.com/healthz        # ok
 
 - 兩把鑰匙分開：回報鑰匙（在外掛的設定、`web.json` 和上傳的 zip 裡，Claude 在任務裡讀得到）只能**寫入**咖啡廳，不能看；看網頁要另一把密碼。
 - `web_key` 不是加密保存的設定：Claude Code 會把它以純文字存在 `~/.claude/settings.json`。所以它只能寫入咖啡廳，不能看。
-- 密碼打錯：同一個位址 15 分鐘內 8 次、所有人加起來 40 次之後，暫時不再接受登入（已經登入的瀏覽器不受影響）。
+- 密碼打錯：同一個位址 15 分鐘內 8 次、所有人加起來 40 次之後，暫時不再接受登入（已經登入的瀏覽器不受影響）。伺服器只有在 Cloudflare tunnel 後面才分得出不同的位址；接在你自己的反向代理後面時，所有人都算同一個位址。
 - 網頁上所有 session 送來的字都當成純文字放進頁面（名牌和單子用 `textContent`，黑板上的字畫在 canvas 上）；頁面有嚴格的 CSP，three.js 打包在 `/cafe3d.js` 裡從你自己的伺服器送出，不連任何 CDN。
 - `compose.yaml` 只在 `127.0.0.1` 開 port，外面要經過 tunnel 才進得來。
 
@@ -293,11 +298,11 @@ curl -s https://cafe.example.com/healthz        # ok
 在 Claude Code 裡用 `/plugin configure agent-cafe@agent-cafe` 改，或是在終端機：
 
 ```bash
-claude plugin configure agent-cafe@agent-cafe            # 列出目前的設定
-echo '{"language": "zh-TW", "motion": false}' | claude plugin configure agent-cafe@agent-cafe --values-stdin
+claude plugin configure agent-cafe@agent-cafe            # 列出有哪些設定、哪些已經設了
+echo '{"language": "zh-TW", "motion": "false"}' | claude plugin configure agent-cafe@agent-cafe --values-stdin
 ```
 
-改完開新的 session 生效。網頁伺服器的設定在 `web/.env`（見 `web/.env.example`）。
+值一律寫成字串，`"false"` 也是。改完開新的 session 生效。網頁伺服器的設定在 `web/.env`（見 `web/.env.example`）。
 
 ## 它顯示和儲存了什麼
 
@@ -339,7 +344,7 @@ echo '{"language": "zh-TW", "motion": false}' | claude plugin configure agent-ca
 - `claude plugin validate --strict` 通過、`claude plugin test` 在 Claude Code 自己的測試環境裡全過，3D 咖啡廳用 `tsc` 型別檢查通過。網頁版用到的事件格式，是從真的 session 錄下來的（`tests/runs.ts`）。
 - 真正的 Claude Code session（Linux、隔離的設定資料夾；模型換成本機的腳本替身，所以沒有用到真的模型或額度）：headless（`claude -p`）和互動式終端機都有，情境包含主 agent 思考與呼叫工具、前景／背景 subagent、subagent 再開 subagent、執行失敗、權限詢問、手動停掉背景 agent、`/clear`、hot reload、兩個 session 同時開。
 - 桌面 App 的 Code 分頁：pane 裡的圖、清單和圖例都有出來。
-- 網頁伺服器用 Bun 跑，三種回報方式（外掛整桌回報、只有 hooks 逐筆回報、兩者並存）都用真的 session 接過；登入的次數限制、偽造的通行證、跨站的表單都會被擋；伺服器重開後網頁會自己連回去。3D 咖啡廳在 Chromium（軟體算圖的 WebGL）裡用桌面（1440×900）和手機寬度（390×844）看過，接的是模擬 session，貓狗和音樂都試過。
+- 網頁伺服器用 Bun 跑，三種回報方式（外掛整桌回報、只有 hooks 逐筆回報、兩者並存）都用真的 session 接過；登入的次數限制、偽造的通行證、跨站的表單都會被擋；伺服器重開後網頁會自己連回去。3D 咖啡廳在 Chromium（軟體算圖的 WebGL）裡用桌面（1440×900）和手機寬度（390×844）看過，接的是模擬 session，貓狗和音樂都試過（音樂也用觸控螢幕試過）。
 - `web/Dockerfile` 和 `compose.yaml` 用 Docker Engine 29 實際 build、啟動過。
 
 還沒驗證的：從 Claude App 任務到真正網域的整條路；真的 `oven/bun`、`cloudflare/cloudflared` 映像檔和 Cloudflare 那一段（Docker 的測試用的是替身）；macOS 上的回報程式；3D 咖啡廳在獨立顯示卡、Safari 和真的手機上；teammate、MCP 的 elicitation、計畫模式的批准、AskUserQuestion 只有單元測試；真的模型（替身照腳本呼叫工具，真的模型的行為更多樣）。
@@ -347,6 +352,14 @@ echo '{"language": "zh-TW", "motion": false}' | claude plugin configure agent-ca
 ## 開發
 
 指令和每個檔案的用途見[英文版的 Development](README.md#development)。
+
+## 之後可以做的
+
+- Code 分頁 Cloud session 的回報：一個 repo 層級的設定範本。
+- 有人等你的時候讓手機跳通知。
+- 終端機也畫圖。
+- 點一個人看那個 agent 的對話。
+- 讓貓狗的數量存在伺服器上，所有裝置共用。
 
 ## 授權
 

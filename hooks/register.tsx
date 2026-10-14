@@ -403,14 +403,14 @@ async function listen($: EngineInterface, shop: Shop, now: number): Promise<bool
 
 /**
  * Where the café's web page takes reports: the plugin's settings (`web_url`
- * and `web_key`, set with `claude plugin configure`) when they name it, or
- * else web.json, beside the plugin's manifest folder, as
+ * and `web_key`, set with `claude plugin configure`) once `web_url` is filled
+ * in, or else web.json, beside the plugin's manifest folder, as
  * `{ "url": "https://…", "key": "…" }`. Undefined without either, or with one
  * that does not say both.
  */
 async function readInbox($: EngineInterface, url: unknown, key: unknown): Promise<Inbox | undefined> {
   try {
-    if (isWebSet(url, key)) {
+    if (isWebSet(url)) {
       const inbox = inboxOf(url, key)
       if (inbox === undefined) whisper($, 'the web_url and web_key settings do not name an https address and a key')
       return inbox

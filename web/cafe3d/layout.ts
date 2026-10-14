@@ -242,6 +242,30 @@ export function decorSpots(slot: number): Spot[] {
   ]
 }
 
+/** Half a chair's width and depth: its seat is 0.42 square, the rail along its back 0.44 wide. */
+export const CHAIR_HALF = 0.22
+/** How far a pet's middle keeps from a chair or a stool: room for the head of the biggest dog lying beside it. */
+export const PET_ROOM = 0.42
+
+/** The chairs standing in a slot: its table's, for `columns` chairs along each side; the small table's two while it is free. */
+export function chairsOf(slot: number, columns: number): Place[] {
+  if (columns <= 0) return decorSpots(slot)
+  return [...Array(TABLE_SEATS).keys()].filter(seat => columnOfChair(seat) < columns).map(seat => chairOf(slot, seat))
+}
+
+/** The floor a chair stands on. */
+export function chairRect(chair: Point): Rect {
+  return { x0: chair.x - CHAIR_HALF, z0: chair.z - CHAIR_HALF, x1: chair.x + CHAIR_HALF, z1: chair.z + CHAIR_HALF }
+}
+
+/** The walls, as lines along the floor's edge, the right one either side of the doorway: a pet keeps PET_ROOM from them, so that no dog lies down with its head in one. */
+export const PET_WALLS: readonly Rect[] = [
+  { x0: -HALF_W, z0: -HALF_D, x1: -HALF_W, z1: HALF_D },
+  { x0: -HALF_W, z0: -HALF_D, x1: HALF_W, z1: -HALF_D },
+  { x0: HALF_W, z0: -HALF_D, x1: HALF_W, z1: DOOR.z - DOOR.width / 2 - PET_ROOM },
+  { x0: HALF_W, z0: DOOR.z + DOOR.width / 2 + PET_ROOM, x1: HALF_W, z1: HALF_D },
+]
+
 /** The walkable floor: the room less a margin along its walls. */
 export const FLOOR: Rect = { x0: -HALF_W + 0.25, z0: -HALF_D + 0.25, x1: HALF_W - 0.25, z1: HALF_D - 0.3 }
 

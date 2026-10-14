@@ -6,11 +6,11 @@
 // or a dog.
 
 import type { Act } from '../../hooks/describe'
-import { MAIN_LOOK, lookOf } from '../../hooks/sprites'
 import type { Kind, Phase } from '../../hooks/tracker'
 import type { BubbleName } from './kit'
 import type { Place, Point, Spot, SpotKind } from './layout'
 import { CHAIR_H, DOOR, HALF_W, besideChair } from './layout'
+import { figureOf } from './figure'
 import type { Pastime, Want } from './mind'
 import { Intent, LINGER_MS, PACE_AFTER_MS, pickPastime, randomFrom, wantOf } from './mind'
 import type { NavGrid } from './nav'
@@ -95,6 +95,23 @@ const LOUNGES: readonly SpotKind[] = ['sofa', 'armchair', 'bar', 'decor']
 const WALK = 1.6
 const HURRY = 2.2
 const TURN = 9
+/** Nearer than this to the point it walks to, a guest is nudged aside less and less, so it gets there. */
+const NEAR = 0.46
+/**
+ * Who comes in keeps to its right of the door, who goes out to its right:
+ * they pass in the doorway instead of meeting head on. Outside, where nobody
+ * is nudged, a leaver keeps to its lane and is gone short of the plant.
+ */
+const LANE = 0.2
+const IN_STEP: Point = { x: DOOR.inside.x, z: DOOR.z - LANE }
+const IN_FROM: Point = { x: DOOR.outside.x, z: DOOR.z - LANE }
+const OUT_STEP: Point = { x: DOOR.inside.x, z: DOOR.z + LANE }
+const OUT_TO: Point = { x: DOOR.outside.x - 0.6, z: DOOR.z + LANE }
+/** Nearer than this to the step inside the door, one coming in is past it: a group that came in together need not all stand on that one point. */
+const PASS = 0.3
+/** How far into the doorway a nudge may move a guest: its shoulders stay clear of the door posts. */
+const DOORWAY_LOW = DOOR.z - DOOR.width / 2 + 0.3
+const DOORWAY_HIGH = DOOR.z + DOOR.width / 2 - 0.3
 
 function seconds(random: () => number, low: number, high: number): number {
   return (low + (high - low) * random()) * 1000
@@ -133,7 +150,7 @@ export class Guest {
   constructor(line: Line, now: number, seed: number) {
     this.key = line.key
     this.line = line
-    this.body = new Body(line.kind === 'main' ? MAIN_LOOK : lookOf(line.key), line.key)
+    this.body = new Body(figureOf(line.key, line.kind), line.key)
     this.intent = new Intent(wantOf(line.phase, line.act, line.kind, false), now)
     this.random = randomFrom(seed)
   }
@@ -142,8 +159,23 @@ export class Guest {
     return this.intent.want
   }
 
+  /** How fast it walks, in metres a second: hurrying to the person. */
+  private get speed(): number {
+    return this.doing === 'ask' ? HURRY : WALK
+  }
+
   get isWalking(): boolean {
     return this.path.length > 0
+  }
+
+  /** Standing still where it got to, not seated and not on its way out: two such in each other move apart. */
+  get isStanding(): boolean {
+    return this.isThere && this.path.length === 0 && this.goal.sit === 0 && this.where !== 'door'
+  }
+
+  /** On its way out of the door: done, or gone from the view. */
+  get isGoing(): boolean {
+    return this.where === 'door'
   }
 
   /** On its way to a pet, or petting it. */
@@ -154,8 +186,8 @@ export class Guest {
   /** Puts the guest in the room: at the door, coming in, or (when the café first opens) already where it belongs. */
   arrive(world: World, isNew: boolean): void {
     if (isNew && world.motion > 0) {
-      this.x = DOOR.outside.x
-      this.z = DOOR.outside.z
+      this.x = IN_FROM.x
+      this.z = IN_FROM.z
       this.yaw = -Math.PI / 2
       this.body.presence = 0
       this.decide(world)
@@ -180,7 +212,7 @@ export class Guest {
       this.isGone = true
       return
     }
-    this.goTo(world, 'door', { ...DOOR.outside, yaw: Math.PI / 2 }, 0, 'exit', 0)
+    this.goTo(world, 'door', { ...OUT_TO, yaw: Math.PI / 2 }, 0, 'exit', 0)
   }
 
   update(dt: number, t: number, world: World): void {
@@ -212,9 +244,41 @@ export class Guest {
     if (this.isPetting) this.next(world)
   }
 
-  /** Nudged aside by a guest it was about to walk into, where the floor allows. */
-  nudge(dx: number, dz: number, nav: NavGrid): void {
+  /**
+   * Nudged aside by the guests it was about to walk into (all of this frame's
+   * pushes, summed), where the floor allows. Held back at most half a step:
+   * what would push it back further moves it aside instead, away from the
+   * others (to its right when they are straight ahead), less and less as it
+   * nears the point it walks to. Pushed straight back as hard as it walks,
+   * two who meet head on, or close in on the same point from either side of
+   * it (the step inside the door), would stand face to face for good.
+   */
+  nudge(dx: number, dz: number, dt: number, nav: NavGrid): void {
+    const ahead = this.path[0]
+    if (ahead !== undefined) {
+      const ax = ahead.x - this.x
+      const az = ahead.z - this.z
+      const distance = Math.hypot(ax, az)
+      const most = 0.5 * this.speed * dt
+      const along = distance > 1e-4 ? (dx * ax + dz * az) / distance : 0
+      if (along < -most) {
+        const ux = ax / distance
+        const uz = az / distance
+        const sx = dx - along * ux
+        const sz = dz - along * uz
+        const side = Math.hypot(sx, sz)
+        const aside = (-along - most) * Math.min(1, distance / NEAR)
+        const ox = side < 1e-6 ? -uz : sx / side
+        const oz = side < 1e-6 ? ux : sz / side
+        dx = sx - most * ux + ox * aside
+        dz = sz - most * uz + oz * aside
+      }
+    }
     const next = { x: this.x + dx, z: this.z + dz }
+    // In the doorway, never toward the posts (and never further toward them than it already is).
+    if (next.x > DOOR.inside.x && Math.abs(this.z - DOOR.z) < DOOR.width / 2) {
+      next.z = Math.min(Math.max(DOORWAY_HIGH, this.z), Math.max(Math.min(DOORWAY_LOW, this.z), next.z))
+    }
     if (nav.isFree(next)) {
       this.x = next.x
       this.z = next.z
@@ -225,8 +289,10 @@ export class Guest {
   reroute(world: World): void {
     if (this.path.length === 0 || world.motion === 0) return
     const goal = this.path[this.path.length - 1] as Point
-    if (this.where === 'door') this.path = [...world.nav.path(this, DOOR.inside), DOOR.outside]
+    if (this.where === 'door') this.path = this.wayOut(world)
     else if (this.x <= HALF_W) this.path = world.nav.path(this, goal)
+    // One still coming in walks to the step inside the door first, as it did.
+    else this.path = [IN_STEP, ...world.nav.path(IN_STEP, goal)]
   }
 
   // -------------------------------------------------------------------------
@@ -288,7 +354,7 @@ export class Guest {
       case 'cheer':
         world.release(this)
         this.spot = undefined
-        this.goTo(world, 'door', { ...DOOR.outside, yaw: Math.PI / 2 }, 0, 'exit', 0)
+        this.goTo(world, 'door', { ...OUT_TO, yaw: Math.PI / 2 }, 0, 'exit', 0)
         return
       case 'pace':
         this.toChair(world, 'chair', 'think')
@@ -455,7 +521,7 @@ export class Guest {
       return
     }
     if (where === 'door') {
-      this.path = this.x > HALF_W ? [DOOR.outside] : [...world.nav.path(this, DOOR.inside), DOOR.outside]
+      this.path = this.wayOut(world)
       return
     }
     if (Math.hypot(place.x - this.x, place.z - this.z) < 0.05) {
@@ -463,8 +529,19 @@ export class Guest {
       this.reach(world)
       return
     }
-    this.path = this.x > HALF_W - 0.05 ? [DOOR.inside, ...world.nav.path(DOOR.inside, place)] : world.nav.path(this, place)
+    this.path = this.x > HALF_W - 0.05 ? [IN_STEP, ...world.nav.path(IN_STEP, place)] : world.nav.path(this, place)
   }
+
+  /** The way out: to the step inside the door, then through it. From the doorway it goes straight out (kept off the posts), never back in. */
+  private wayOut(world: World): Point[] {
+    if (this.x > HALF_W) return [OUT_TO]
+    if (this.x >= DOOR.inside.x - 0.05 && Math.abs(this.z - DOOR.z) < DOOR.width / 2) {
+      const z = Math.min(DOORWAY_HIGH, Math.max(DOORWAY_LOW, this.z))
+      return Math.abs(z - this.z) < 0.01 ? [OUT_TO] : [{ x: this.x + 0.05, z }, OUT_TO]
+    }
+    return [...world.nav.path(this, OUT_STEP), OUT_TO]
+  }
+
 
   private reach(world: World): void {
     this.isThere = true
@@ -481,12 +558,16 @@ export class Guest {
   private move(dt: number, world: World): void {
     let facing: number | undefined
     if (this.path.length > 0) {
-      let step = (this.doing === 'ask' ? HURRY : WALK) * dt
+      let step = this.speed * dt
       while (step > 0 && this.path.length > 0) {
         const next = this.path[0] as Point
         const dx = next.x - this.x
         const dz = next.z - this.z
         const distance = Math.hypot(dx, dz)
+        if (next === IN_STEP && this.path.length > 1 && distance < PASS) {
+          this.path.shift()
+          continue
+        }
         if (distance > 1e-4) facing = Math.atan2(dx, dz)
         if (distance <= step) {
           this.x = next.x

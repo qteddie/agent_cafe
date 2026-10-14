@@ -471,9 +471,8 @@ function inboxOf(base, key) {
     url.pathname += "/";
   return { url: new URL("in", url).toString(), key: secret };
 }
-function isWebSet(url, key) {
-  const isFilled = (value) => typeof value === "string" && value.trim() !== "";
-  return isFilled(url) || isFilled(key);
+function isWebSet(url) {
+  return typeof url === "string" && url.trim() !== "";
 }
 function inboxOfFile(config) {
   if (typeof config !== "object" || config === null)
@@ -568,7 +567,7 @@ async function main() {
   const key = process.env["CLAUDE_PLUGIN_OPTION_WEB_KEY"];
   const root = process.env["CLAUDE_PLUGIN_ROOT"];
   let inbox;
-  if (isWebSet(url, key))
+  if (isWebSet(url))
     inbox = inboxOf(url, key);
   else if (root !== undefined && root !== "")
     inbox = inboxOfFile(JSON.parse(readFileSync(join(root, "web.json"), "utf8")));

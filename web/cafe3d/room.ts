@@ -97,8 +97,9 @@ function chairGeometry(): THREE.BufferGeometry {
   ] as const) {
     batch.box(CHAIR, 0.045, legH, 0.045, x, 0, z)
   }
-  batch.box(CHAIR, 0.42, 0.28, 0.05, 0, CHAIR_H, -0.19)
-  batch.box(CHAIR_LIGHT, 0.44, 0.045, 0.07, 0, CHAIR_H + 0.28, -0.19)
+  // The back stops just under the head of the smallest guest seated, so no head goes through it.
+  batch.box(CHAIR, 0.42, 0.22, 0.05, 0, CHAIR_H, -0.19)
+  batch.box(CHAIR_LIGHT, 0.44, 0.045, 0.07, 0, CHAIR_H + 0.22, -0.19)
   return batch.geometry()
 }
 
@@ -304,8 +305,9 @@ export class Room {
     for (const wall of this.walls) {
       wall.group.visible = camera.clone().sub(wall.point).dot(wall.normal) > 0
     }
-    const doorTarget = isDoorWanted ? 1.25 : 0
-    this.doorAngle += (doorTarget - this.doorAngle) * (motion > 0 ? 1 - Math.exp(-dt * 5) : 1)
+    // Open past square, back toward the wall outside, and quickly: the leaf is clear of both lanes before anyone reaches it.
+    const doorTarget = isDoorWanted ? 1.9 : 0
+    this.doorAngle += (doorTarget - this.doorAngle) * (motion > 0 ? 1 - Math.exp(-dt * 8) : 1)
     this.door.rotation.y = this.doorAngle
     this.steam.forEach((puff, index) => {
       const cycle = ((t * 0.55 + index / this.steam.length) % 1 + 1) % 1

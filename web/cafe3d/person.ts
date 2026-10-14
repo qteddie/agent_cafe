@@ -1,23 +1,23 @@
-// A guest's body: a little voxel person in the look the café picture gives
-// the same agent (hooks/sprites.ts: skin, hair, top, head style), and the
-// poses it takes. A pose names where each joint should be; the joints ease
-// there, so one pose melts into the next.
+// A guest's body: a little voxel person built from its figure (figure.ts: who
+// it is, rolled from its agent's key), and the poses it takes. A pose names
+// where each joint should be; the joints ease there, so one pose melts into
+// the next.
+//
+// The look is not the café picture's: the pixel-art café in the pane keeps its
+// own, simpler looks (hooks/sprites.ts lookOf) on purpose, so the same agent
+// looks different there.
 
 import * as THREE from 'three'
 
-import type { Look } from '../../hooks/sprites'
-import { INK, darken, hash, inksOf } from '../../hooks/sprites'
+import { hash } from '../../hooks/sprites'
+import type { Figure } from './figure'
+import { HIP_X, armParts, headParts, legParts, seatOf, torsoParts } from './figure'
 import type { BubbleName, Part } from './kit'
 import { PAINT, UNIT_BOX, bubbleTexture, glow, partsGeometry } from './kit'
 import { TABLE_H } from './layout'
 
 /** The length of a leg, and so the height of the hips. */
 export const LEG = 0.28
-const SHOULDER = 0.3
-const NECK = 0.32
-const HEAD_H = 0.38
-/** The top of a standing guest's head. */
-export const HEIGHT = LEG + NECK + HEAD_H + 0.06
 
 export type Pose =
   | 'stand'
@@ -59,9 +59,7 @@ function rest(): Joints {
   return { legL: 0, legR: 0, armLx: 0, armLz: 0, armRx: 0, armRz: 0, headX: 0, headY: 0, headZ: 0, lean: 0, lift: 0, turn: 0 }
 }
 
-const PANTS = ['#3b4252', '#4a3f35', '#2f3e46', '#55463a', '#36454f', '#40394a']
 const COVERS = ['#3f6fb0', '#a8452f', '#3d8f5a', '#7b5aa6', '#c48a2a']
-const SHOE = '#2b2320'
 const SITTING = -Math.PI / 2
 
 function part(color: string, w: number, h: number, d: number, x: number, y: number, z: number): Part {
@@ -212,53 +210,16 @@ function poseJoints(pose: Pose, isSeated: boolean, t: number, phase: number, mot
       joints.headX = 0.32 + 0.09 * wave(2)
       break
     case 'pet':
-      joints.lift = -0.06
-      joints.lean = 0.5
+      // Bent at the hips down to the pet, the feet on the floor.
+      joints.lean = 0.6
       joints.armLx = -0.3
       joints.armRx = -0.85 + 0.25 * wave(5)
       joints.armRz = 0.12
-      joints.headX = 0.35
+      joints.headX = 0.4
       break
   }
   return joints
 }
-
-type Hair = { w: number; h: number; d: number; x: number; y: number; z: number; ink: 'hair' | 'cap' | 'brim' }
-
-/** The hair of each head style of the café picture: short, fringe, long, bun and cap. */
-const HAIRS: readonly (readonly Hair[])[] = [
-  [
-    { w: 0.46, h: 0.11, d: 0.43, x: 0, y: 0.38, z: -0.01, ink: 'hair' },
-    { w: 0.47, h: 0.3, d: 0.08, x: 0, y: 0.24, z: -0.2, ink: 'hair' },
-    { w: 0.05, h: 0.16, d: 0.29, x: 0.215, y: 0.28, z: -0.035, ink: 'hair' },
-    { w: 0.05, h: 0.16, d: 0.29, x: -0.215, y: 0.28, z: -0.035, ink: 'hair' },
-  ],
-  [
-    { w: 0.46, h: 0.11, d: 0.43, x: 0, y: 0.38, z: -0.01, ink: 'hair' },
-    { w: 0.47, h: 0.3, d: 0.08, x: 0, y: 0.24, z: -0.2, ink: 'hair' },
-    { w: 0.05, h: 0.2, d: 0.33, x: 0.215, y: 0.26, z: -0.015, ink: 'hair' },
-    { w: 0.05, h: 0.2, d: 0.33, x: -0.215, y: 0.26, z: -0.015, ink: 'hair' },
-    { w: 0.3, h: 0.08, d: 0.05, x: -0.07, y: 0.32, z: 0.2, ink: 'hair' },
-  ],
-  [
-    { w: 0.46, h: 0.11, d: 0.43, x: 0, y: 0.38, z: -0.01, ink: 'hair' },
-    { w: 0.47, h: 0.56, d: 0.09, x: 0, y: 0.12, z: -0.2, ink: 'hair' },
-    { w: 0.05, h: 0.46, d: 0.3, x: 0.218, y: 0.16, z: -0.05, ink: 'hair' },
-    { w: 0.05, h: 0.46, d: 0.3, x: -0.218, y: 0.16, z: -0.05, ink: 'hair' },
-  ],
-  [
-    { w: 0.46, h: 0.11, d: 0.43, x: 0, y: 0.38, z: -0.01, ink: 'hair' },
-    { w: 0.47, h: 0.3, d: 0.08, x: 0, y: 0.24, z: -0.2, ink: 'hair' },
-    { w: 0.05, h: 0.16, d: 0.29, x: 0.215, y: 0.28, z: -0.035, ink: 'hair' },
-    { w: 0.05, h: 0.16, d: 0.29, x: -0.215, y: 0.28, z: -0.035, ink: 'hair' },
-    { w: 0.18, h: 0.17, d: 0.17, x: 0, y: 0.5, z: -0.08, ink: 'hair' },
-  ],
-  [
-    { w: 0.46, h: 0.13, d: 0.44, x: 0, y: 0.37, z: -0.01, ink: 'cap' },
-    { w: 0.4, h: 0.04, d: 0.18, x: 0, y: 0.33, z: 0.25, ink: 'brim' },
-    { w: 0.47, h: 0.18, d: 0.08, x: 0, y: 0.22, z: -0.2, ink: 'hair' },
-  ],
-]
 
 /** One guest's body, its props, its bubble and the ring under it. */
 export class Body {
@@ -285,6 +246,12 @@ export class Body {
   private readonly screen: THREE.Mesh
   private readonly joints = rest()
   private readonly phase: number
+  /** How big it is: the body group's scale. */
+  private readonly scale: number
+  /** The top of its head (or hat) standing, from the floor. */
+  private readonly height: number
+  /** Seated, how far forward of the chair's middle its hips are. */
+  private readonly seat: number
   private pose: Pose = 'stand'
   private isSeated = false
   private seatLift = 0
@@ -294,32 +261,26 @@ export class Body {
   /** How far it has grown in: 0 outside the door, 1 in the room. */
   presence = 1
 
-  constructor(look: Look, seed: string) {
+  constructor(figure: Figure, seed: string) {
     const code = hash(seed)
     this.phase = (code % 628) / 100
-    const inks = inksOf(look)
-    const pants = PANTS[code % PANTS.length] ?? '#3b4252'
-    const blush = inks['B'] ?? look.skin
 
     // Each limb is one mesh, its parts painted in: a guest is six draws.
-    const leg = partsGeometry([part(pants, 0.15, 0.23, 0.17, 0, -0.115, 0), part(SHOE, 0.16, 0.05, 0.21, 0, -0.255, 0.02)])
-    const arm = partsGeometry([part(look.top, 0.1, 0.2, 0.12, 0, -0.1, 0), part(look.skin, 0.1, 0.07, 0.11, 0, -0.235, 0)])
-    const torso = partsGeometry([part(look.top, 0.36, 0.32, 0.22, 0, 0.16, 0), part(look.collar, 0.18, 0.05, 0.02, 0, 0.29, 0.112)])
-    const hairInk = { hair: look.hair, cap: look.cap, brim: darken(look.cap) }
-    const head = partsGeometry([
-      part(look.skin, 0.42, HEAD_H, 0.38, 0, HEAD_H / 2, 0),
-      part(INK, 0.05, 0.08, 0.02, 0.09, 0.17, 0.191),
-      part(INK, 0.05, 0.08, 0.02, -0.09, 0.17, 0.191),
-      part(blush, 0.07, 0.03, 0.01, 0.145, 0.1, 0.191),
-      part(blush, 0.07, 0.03, 0.01, -0.145, 0.1, 0.191),
-      part('#b5574f', 0.06, 0.025, 0.01, 0, 0.065, 0.191),
-      ...(HAIRS[look.head] ?? HAIRS[0] ?? []).map(hair => part(hairInk[hair.ink], hair.w, hair.h, hair.d, hair.x, hair.y, hair.z)),
-    ])
+    const leg = partsGeometry(legParts(figure))
+    const arm = partsGeometry(armParts(figure))
+    const torso = partsGeometry(torsoParts(figure))
+    const face = headParts(figure)
+    const head = partsGeometry(face.parts)
     this.owned = [leg, arm, torso, head]
+    this.scale = figure.scale
+    this.height = figure.scale * (LEG + figure.torso + face.top)
+    this.seat = seatOf(figure)
+    const shoulder = figure.torso - 0.02
+    const reach = figure.width / 2 + 0.055
 
     // Legs, from the hips down.
-    this.legL.position.set(0.09, LEG, 0)
-    this.legR.position.set(-0.09, LEG, 0)
+    this.legL.position.set(HIP_X, LEG, 0)
+    this.legR.position.set(-HIP_X, LEG, 0)
     this.legL.add(shape(leg))
     this.legR.add(shape(leg))
     this.body.add(this.legL, this.legR)
@@ -327,12 +288,12 @@ export class Body {
     // The upper body turns about the hips.
     this.upper.position.set(0, LEG, 0)
     this.upper.add(shape(torso))
-    this.armL.position.set(0.235, SHOULDER, 0)
-    this.armR.position.set(-0.235, SHOULDER, 0)
+    this.armL.position.set(reach, shoulder, 0)
+    this.armR.position.set(-reach, shoulder, 0)
     this.armL.add(shape(arm))
     this.armR.add(shape(arm))
     this.upper.add(this.armL, this.armR)
-    this.head.position.set(0, NECK, 0)
+    this.head.position.set(0, figure.torso, 0)
     this.head.add(shape(head))
     this.upper.add(this.head)
 
@@ -358,6 +319,7 @@ export class Body {
     this.upper.add(this.book)
 
     this.body.add(this.upper)
+    this.body.scale.setScalar(this.scale)
     this.root.add(this.body)
 
     // The ring that marks the guest picked out on the list.
@@ -365,6 +327,8 @@ export class Body {
     this.ring.rotation.x = -Math.PI / 2
     this.ring.position.y = 0.015
     this.ring.visible = false
+    // Only a mark: the floor under it is still the floor to a click.
+    this.ring.raycast = () => {}
     this.root.add(this.ring)
 
     this.bubbleMaterial = new THREE.SpriteMaterial({ transparent: true, depthWrite: false })
@@ -390,7 +354,7 @@ export class Body {
   setPose(pose: Pose, isSeated: boolean, seatHeight: number): void {
     this.pose = pose
     this.isSeated = isSeated
-    this.seatLift = isSeated ? seatHeight - LEG + 0.01 : 0
+    this.seatLift = isSeated ? seatHeight - LEG * this.scale + 0.01 : 0
   }
 
   setHeld(held: Held): void {
@@ -434,8 +398,10 @@ export class Body {
     this.head.rotation.set(joints.headX, joints.headY, joints.headZ)
     this.upper.rotation.set(joints.lean, joints.turn, 0)
     this.body.position.y = this.seatLift + joints.lift
-    // Seated, the hips sit back on the seat.
-    this.body.position.z = this.isSeated ? -0.04 : 0
+    // Seated, the hips sit back on the seat, as far back as what it wears allows; slumped forward over the
+    // table, where everyone used to (its back is clear of the chair then). They ease there like the joints.
+    const back = this.isSeated ? (this.pose === 'slump' ? -0.04 : this.seat) : 0
+    this.body.position.z += (back - this.body.position.z) * ease
     // A cup, a magnifier or a note stays upright whatever the arm does.
     this.cup.rotation.x = -joints.armRx - joints.lean
     this.lens.rotation.x = -joints.armRx - 0.4
@@ -459,7 +425,7 @@ export class Body {
       }
     }
     const bob = name === 'ask' || name === 'query' ? 0.05 * Math.abs(Math.sin(t * 5 + this.phase)) * motion : 0
-    this.bubble.position.set(0, this.body.position.y + HEIGHT + 0.08 + bob, 0)
+    this.bubble.position.set(0, this.body.position.y + this.height + 0.08 + bob, 0)
 
     const scale = Math.max(0.001, this.presence)
     this.root.scale.setScalar(scale)
@@ -467,7 +433,7 @@ export class Body {
 
   /** How high the top of its head is now. */
   headTop(): number {
-    return this.body.position.y + HEIGHT
+    return this.body.position.y + this.height
   }
 
   dispose(): void {

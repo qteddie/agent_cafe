@@ -265,8 +265,8 @@ export function inksOf(look: Look): Inks {
   }
 }
 
-function blushOf(skin: string): string {
-  // A touch redder than the skin, so it reads on every tone.
+/** A touch redder than the skin, so the cheeks read on every tone. */
+export function blushOf(skin: string): string {
   const value = Number.parseInt(skin.slice(1), 16)
   const red = Math.min(255, ((value >> 16) & 255) + 6)
   const green = Math.round(((value >> 8) & 255) * 0.82)

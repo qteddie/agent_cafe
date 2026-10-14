@@ -230,12 +230,12 @@ export function inboxOf(base: unknown, key: unknown): Inbox | undefined {
 }
 
 /**
- * True when the plugin's settings name the web page (`web_url`, `web_key`):
- * either one filled in is enough, and web.json is then not read.
+ * True when the plugin's settings name the web page: `web_url` is filled in
+ * (as hooks.json checks before it runs the reporter). web.json is then not
+ * read, and the key must come from `web_key`.
  */
-export function isWebSet(url: unknown, key: unknown): boolean {
-  const isFilled = (value: unknown) => typeof value === 'string' && value.trim() !== ''
-  return isFilled(url) || isFilled(key)
+export function isWebSet(url: unknown): boolean {
+  return typeof url === 'string' && url.trim() !== ''
 }
 
 /** The inbox web.json names, as `{ "url": "https://…", "key": "…" }`. */

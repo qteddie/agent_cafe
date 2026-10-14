@@ -51,7 +51,7 @@
   let pets = savedPets()
 
   // The café's music: made by the browser, so it plays only once the person asks (or, if they
-  // left it on last time, from their first click on the page: browsers wait for one).
+  // left it on last time, from their first click or key on the page: browsers wait for one).
   const MUSIC_KEY = 'agent-cafe-music'
   let music = null
 
@@ -86,8 +86,15 @@
     volumeInput.value = String(musicChoice.volume)
   }
 
+  /** The browser started or stopped the sound by itself: one it put to sleep comes back with the next click. */
+  function musicChanged() {
+    if (musicChoice.on && music !== null && !music.isPlaying) waitForGesture()
+    showMusic()
+  }
+
+  /** The music, on or off, as the person chose. */
   function playMusic(isOn) {
-    if (music === null) music = (window.AgentCafe3D && window.AgentCafe3D.music()) || null
+    if (music === null) music = (window.AgentCafe3D && window.AgentCafe3D.music(musicChanged)) || null
     if (music === null) {
       musicButton.hidden = true
       return
@@ -95,9 +102,50 @@
     music.setVolume(musicChoice.volume)
     musicChoice = { ...musicChoice, on: isOn }
     keepMusic()
-    if (isOn) music.start().then(showMusic, () => showMusic())
-    else music.stop()
+    if (isOn) {
+      music.start().then(
+        () => {
+          stopWaiting()
+          showMusic()
+        },
+        () => {
+          // The browser holds the sound back until the person clicks or presses a key.
+          waitForGesture()
+          showMusic()
+        },
+      )
+    } else {
+      stopWaiting()
+      music.stop()
+    }
     showMusic()
+  }
+
+  // Music left on, that the browser holds back: it starts with the person's next click or key.
+  const GESTURES = ['pointerdown', 'pointerup', 'keydown']
+  let isWaiting = false
+
+  function onGesture(event) {
+    // The switch decides by itself.
+    if (event.target instanceof Element && event.target.closest('#music')) return
+    // Only what browsers count as the go-ahead for sound: a mouse press, a finger or pen lifted, a key but Escape.
+    if (event.type === 'pointerdown' && event.pointerType !== 'mouse') return
+    if (event.type === 'pointerup' && event.pointerType === 'mouse') return
+    if (event.type === 'keydown' && event.key === 'Escape') return
+    if (musicChoice.on && (music === null || !music.isPlaying)) playMusic(true)
+    else stopWaiting()
+  }
+
+  function waitForGesture() {
+    if (isWaiting || !musicChoice.on) return
+    isWaiting = true
+    for (const type of GESTURES) document.addEventListener(type, onGesture, true)
+  }
+
+  function stopWaiting() {
+    if (!isWaiting) return
+    isWaiting = false
+    for (const type of GESTURES) document.removeEventListener(type, onGesture, true)
   }
 
   function showPets() {
@@ -307,17 +355,8 @@
     keepMusic()
     if (music !== null) music.setVolume(musicChoice.volume)
   })
-  if (musicChoice.on) {
-    // Left on last time: it comes back with the first click or key on the page (but not the switch, which decides by itself).
-    const resume = event => {
-      if (event.target instanceof Element && event.target.closest('#music')) return
-      document.removeEventListener('pointerdown', resume, true)
-      document.removeEventListener('keydown', resume, true)
-      if (music === null || !music.isPlaying) playMusic(true)
-    }
-    document.addEventListener('pointerdown', resume, true)
-    document.addEventListener('keydown', resume, true)
-  }
+  // Left on last time: it comes back with the first click or key on the page.
+  if (musicChoice.on) waitForGesture()
   showMusic()
   petBar.addEventListener('click', event => {
     const button = event.target instanceof Element ? event.target.closest('.pet-step') : null

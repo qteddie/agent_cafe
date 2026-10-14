@@ -224,11 +224,11 @@ describe('where a report goes, and where it comes from', () => {
     expect(inboxOf(undefined, 'k')).toBeUndefined()
   })
 
-  test('the settings name the page once either is filled in; web.json names it otherwise', () => {
-    expect(isWebSet('https://cafe.example.com', '')).toBe(true)
-    expect(isWebSet(undefined, 'k')).toBe(true)
-    expect(isWebSet('', ' ')).toBe(false)
-    expect(isWebSet(undefined, undefined)).toBe(false)
+  test('the settings name the page once web_url is filled in; web.json names it otherwise', () => {
+    expect(isWebSet('https://cafe.example.com')).toBe(true)
+    expect(isWebSet(' ')).toBe(false)
+    expect(isWebSet('')).toBe(false)
+    expect(isWebSet(undefined)).toBe(false)
     expect(inboxOfFile({ url: 'https://cafe.example.com', key: 'k' })).toEqual({ url: 'https://cafe.example.com/in', key: 'k' })
     expect(inboxOfFile({ url: 'https://cafe.example.com' })).toBeUndefined()
     expect(inboxOfFile(null)).toBeUndefined()

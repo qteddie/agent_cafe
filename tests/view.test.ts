@@ -52,8 +52,8 @@ describe('what a seat says', () => {
 
   test('an unknown language falls back to English', () => {
     expect(wordsFor('zh-TW').thinking).toBe('思考中')
-    expect(wordsFor('fr').thinking).toBe(wordsFor('en').thinking)
-    expect(wordsFor(undefined).thinking).toBe(wordsFor('en').thinking)
+    expect(wordsFor('fr').thinking).toBe('Thinking')
+    expect(wordsFor(undefined).thinking).toBe('Thinking')
   })
 })
 

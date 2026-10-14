@@ -27,7 +27,11 @@ import {
   CAT_BEDS,
   TABLE_SEATS,
   WALL_H,
+  PET_ROOM,
+  PET_WALLS,
   chairOf,
+  chairRect,
+  chairsOf,
   columnsOf,
   decorSpots,
   decorTable,
@@ -76,6 +80,10 @@ const CHOSEN_MS = 45_000
 /** How long a heart floats up, and how long the mark of a click on the floor shows. */
 const HEART_MS = 1_300
 const MARK_MS = 900
+/** Two guests about to walk into each other each step aside a little to their right, so that two who meet in mirror image turn about each other. */
+const KEEP_RIGHT = (15 * Math.PI) / 180
+/** Nothing drawn of a guest reaches further than this from where it stands (an arm down to a pet, a frame behind). */
+const REACH = 1
 
 type Table = {
   id: string
@@ -127,6 +135,12 @@ class Cafe3D implements World, PetWorld, Stage {
   motion: number
   now = performance.now()
   readonly nav = new NavGrid({ x0: -HALF_W, z0: -HALF_D, x1: HALF_W, z1: HALF_D }, 0.2)
+  /**
+   * The cats' and dogs' floor: the guests', less the chairs, with room around
+   * each for a dog's head and tail, so that no pet lies down in one. Guests
+   * walk the other: they sit in the chairs, and stand up behind them.
+   */
+  readonly petNav = new NavGrid({ x0: -HALF_W, z0: -HALF_D, x1: HALF_W, z1: HALF_D }, 0.2)
   private readonly renderer: THREE.WebGLRenderer
   private readonly scene = new THREE.Scene()
   private readonly camera = new THREE.PerspectiveCamera(VIEW_FOV, 1, 0.5, 140)
@@ -442,7 +456,7 @@ class Cafe3D implements World, PetWorld, Stage {
     const taken = this.pets.filter(other => other !== pet && other.species === 'cat' && !other.isLeaving).map(other => other.goal)
     const free = CAT_BEDS.filter(bed => !taken.some(goal => Math.hypot(goal.x - bed.x, goal.z - bed.z) < 0.3))
     const bed = free[Math.floor(Math.random() * free.length)]
-    return bed === undefined ? undefined : this.nav.nearestPoint(bed)
+    return bed === undefined ? undefined : this.petNav.nearestPoint(bed)
   }
 
   besideResting(random: () => number): Point | undefined {
@@ -452,9 +466,10 @@ class Cafe3D implements World, PetWorld, Stage {
     const guest = resting[Math.floor(random() * resting.length)]
     if (guest === undefined) return undefined
     const angle = random() * Math.PI * 2
-    return this.nav.nearestPoint({ x: guest.x + Math.sin(angle) * 0.65, z: guest.z + Math.cos(angle) * 0.65 })
+    return this.petNav.nearestPoint({ x: guest.x + Math.sin(angle) * 0.65, z: guest.z + Math.cos(angle) * 0.65 })
   }
 
+  /** A free point of floor, clear of the chairs too: for a pet to settle on, or a guest to stroll to. */
   floorPoint(random: () => number, center?: Point, radius = 2): Point {
     for (let attempt = 0; attempt < 40; attempt += 1) {
       const point =
@@ -462,14 +477,14 @@ class Cafe3D implements World, PetWorld, Stage {
           ? { x: FLOOR.x0 + random() * (FLOOR.x1 - FLOOR.x0), z: FLOOR.z0 + random() * (FLOOR.z1 - FLOOR.z0) }
           : { x: center.x + (random() * 2 - 1) * radius, z: center.z + (random() * 2 - 1) * radius }
       if (point.x < FLOOR.x0 || point.x > FLOOR.x1 || point.z < FLOOR.z0 || point.z > FLOOR.z1) continue
-      if (!this.nav.isFree(point)) continue
+      if (!this.petNav.isFree(point)) continue
       let isCrowded = false
       for (const other of this.guests.values()) {
         if (Math.hypot(other.x - point.x, other.z - point.z) < 0.6) isCrowded = true
       }
       if (!isCrowded) return point
     }
-    return this.nav.nearestPoint(center ?? { x: 0, z: 2 })
+    return this.petNav.nearestPoint(center ?? { x: 0, z: 2 })
   }
 
   /** Where a dog brings a ball back to: the edge of the floor nearest the camera, a little in. */
@@ -478,7 +493,7 @@ class Cafe3D implements World, PetWorld, Stage {
     const x = THREE.MathUtils.clamp(camera.x, FLOOR.x0 + 1, FLOOR.x1 - 1)
     const z = THREE.MathUtils.clamp(camera.z, FLOOR.z0 + 1, FLOOR.z1 - 1)
     // Toward the camera from where the dog is, but not all the way to the edge.
-    return this.nav.nearestPoint({ x: pet.x + (x - pet.x) * 0.75, z: pet.z + (z - pet.z) * 0.75 })
+    return this.petNav.nearestPoint({ x: pet.x + (x - pet.x) * 0.75, z: pet.z + (z - pet.z) * 0.75 })
   }
 
   cameraYaw(x: number, z: number): number {
@@ -517,15 +532,32 @@ class Cafe3D implements World, PetWorld, Stage {
   }
 
   private rebuildNav(): void {
-    this.nav.clear()
-    for (const rect of FIXED_OBSTACLES) this.nav.block(rect)
+    for (const nav of [this.nav, this.petNav]) {
+      nav.clear()
+      for (const rect of FIXED_OBSTACLES) nav.block(rect)
+    }
+    // The stools along the window bar are chairs too, to a dog; and a dog lies down a head's length from a wall.
+    for (const spot of SPOTS) if (spot.kind === 'bar') this.petNav.block(chairRect(spot), PET_ROOM)
+    for (const wall of PET_WALLS) this.petNav.block(wall, PET_ROOM)
     for (let slot = 0; slot < SLOTS; slot += 1) {
       const furniture = this.room.slots[slot]
       if (furniture === undefined) continue
-      if (furniture.shown > 0) this.nav.block(tableRect(slot, furniture.shown))
-      else this.nav.blockCircle(decorTable(slot), decorTable(slot).r)
+      for (const nav of [this.nav, this.petNav]) {
+        if (furniture.shown > 0) nav.block(tableRect(slot, furniture.shown))
+        else nav.blockCircle(decorTable(slot), decorTable(slot).r)
+      }
+      for (const chair of chairsOf(slot, furniture.shown)) this.petNav.block(chairRect(chair), PET_ROOM)
     }
     for (const guest of this.guests.values()) guest.reroute(this)
+    // A ball a table or a chair just came down on rolls out from under it, and a dog after it goes there.
+    for (const ball of this.balls.values()) {
+      if (ball.state === 'carried' || this.petNav.isFree(ball)) continue
+      const spot = this.petNav.nearestPoint(ball)
+      ball.x = spot.x
+      ball.z = spot.z
+    }
+    // A pet a table or a chair just came down on gets up and moves over.
+    for (const pet of this.pets) pet.reroute(this)
   }
 
   /** Lets go of the guests through the door, and the tables whose guests have all gone. */
@@ -637,14 +669,37 @@ class Cafe3D implements World, PetWorld, Stage {
         best = found
       }
     }
-    for (const guest of this.guests.values()) {
-      if (guest.isLeaving || guest.body.presence < 0.5) continue
+    const pointable = [...this.guests.values()].filter(guest => !guest.isLeaving && guest.body.presence >= 0.5)
+    const pets = this.pets.filter(pet => !pet.isLeaving && pet.isPresent)
+    // A guest or a pet is picked by what is drawn of it, a hat's brim and a raised arm included, so that a
+    // nearer one's empty corners do not take the click from the one seen behind it.
+    const shapes: THREE.Object3D[] = []
+    const exactly = (root: THREE.Object3D, found: { key: string; pet: Pet | undefined }): void => {
+      shapes.length = 0
+      root.traverseVisible(object => {
+        if (object instanceof THREE.Mesh) shapes.push(object)
+      })
+      const exact = this.raycaster.intersectObjects(shapes, false)[0]
+      if (exact !== undefined && exact.distance < bestDistance) {
+        bestDistance = exact.distance
+        best = found
+      }
+    }
+    for (const guest of pointable) {
+      // Only a guest the pointer passes near is looked at closely.
+      this.box.min.set(guest.x - REACH, -0.1, guest.z - REACH)
+      this.box.max.set(guest.x + REACH, guest.body.headTop() + 0.5, guest.z + REACH)
+      if (this.raycaster.ray.intersectsBox(this.box)) exactly(guest.body.root, { key: guest.key, pet: undefined })
+    }
+    for (const pet of pets) exactly(pet.root, { key: '', pet })
+    if (best !== none) return best
+    // A click that just misses everyone: the box around each, the nearest, so a thin seated figure is still easy to click.
+    for (const guest of pointable) {
       this.box.min.set(guest.x - 0.3, 0, guest.z - 0.3)
       this.box.max.set(guest.x + 0.3, guest.body.headTop() + 0.1, guest.z + 0.3)
       consider({ key: guest.key, pet: undefined })
     }
-    for (const pet of this.pets) {
-      if (pet.isLeaving || !pet.isPresent) continue
+    for (const pet of pets) {
       // The pet's own outline, turned as it stands: a dog's snout is as good as its back.
       pet.hitBox(this.box)
       consider({ key: '', pet })
@@ -691,7 +746,7 @@ class Cafe3D implements World, PetWorld, Stage {
 
   /** The pet picked out, sent to a point of the floor: a dog runs after a ball thrown there. */
   private send(pet: Pet, point: Point): void {
-    const target = this.nav.nearestPoint(point)
+    const target = this.petNav.nearestPoint(point)
     this.chosenAt = this.now
     this.markAt = this.now
     this.mark.position.set(target.x, 0.02, target.z)
@@ -829,22 +884,46 @@ class Cafe3D implements World, PetWorld, Stage {
   /** Guests walking into each other step aside. */
   private keepApart(dt: number): void {
     const all = [...this.guests.values()].filter(guest => !guest.isGone && guest.body.presence > 0.5)
+    const pushes = new Map<Guest, Point>()
+    const add = (guest: Guest, x: number, z: number): void => {
+      const sum = pushes.get(guest)
+      if (sum === undefined) pushes.set(guest, { x, z })
+      else pushes.set(guest, { x: sum.x + x, z: sum.z + z })
+    }
     for (let one = 0; one < all.length; one += 1) {
       for (let other = one + 1; other < all.length; other += 1) {
         const a = all[one] as Guest
         const b = all[other] as Guest
-        if (!a.isWalking && !b.isWalking) continue
+        // Two standing still in each other also move apart; a guest seated never moves.
+        if (!a.isWalking && !b.isWalking && !(a.isStanding && b.isStanding)) continue
         const dx = b.x - a.x
         const dz = b.z - a.z
         const distance = Math.hypot(dx, dz)
-        if (distance >= 0.46 || distance < 1e-4) continue
+        if (distance >= 0.46) continue
         const push = Math.min(0.5 * dt * 4, (0.46 - distance) / 2)
-        const nx = dx / distance
-        const nz = dz / distance
-        if (a.isWalking) a.nudge(-nx * push, -nz * push, this.nav)
-        if (b.isWalking) b.nudge(nx * push, nz * push, this.nav)
+        // Two in the very same place (come in at the door together): apart across the room's depth.
+        const nx = distance < 1e-4 ? 0 : dx / distance
+        const nz = distance < 1e-4 ? 1 : dz / distance
+        // Two on their way out walk the same way: turned, the push would shove the outer one past the step inside the door.
+        const turn = a.isGoing && b.isGoing ? 0 : KEEP_RIGHT
+        const rx = nx * Math.cos(turn) + nz * Math.sin(turn)
+        const rz = nz * Math.cos(turn) - nx * Math.sin(turn)
+        // A guest standing at its place keeps it: only a walker steps aside (brushing past it for a moment
+        // if its way runs right through that place), or two standing in each other.
+        const isBothStanding = a.isStanding && b.isStanding
+        // At the door, two on their way out go one after the other: the one further on keeps going, the
+        // other is held back behind it by no more than half a step (so it only slows down).
+        const first = a.isGoing && b.isGoing && Math.min(a.x, b.x) > DOOR.inside.x - 1 ? (a.x >= b.x ? a : b) : undefined
+        const give = (guest: Guest): number => {
+          if (guest === first) return 0
+          if (guest.isWalking) return first === undefined ? push : Math.min(push, 0.8 * dt)
+          return isBothStanding ? Math.min(push, 0.6 * dt) : 0
+        }
+        add(a, -rx * give(a), -rz * give(a))
+        add(b, rx * give(b), rz * give(b))
       }
     }
+    for (const [guest, push] of pushes) guest.nudge(push.x, push.z, dt, this.nav)
   }
 
   private placeTags(): void {
@@ -925,7 +1004,7 @@ declare global {
     AgentCafe3D?: {
       mount: (host: HTMLElement, options: StageOptions) => Stage | undefined
       /** The café's music, made by the browser; undefined where it cannot play sound. */
-      music: () => Music | undefined
+      music: (onChange?: () => void) => Music | undefined
     }
   }
 }
