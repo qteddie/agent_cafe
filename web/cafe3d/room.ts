@@ -97,8 +97,9 @@ function chairGeometry(): THREE.BufferGeometry {
   ] as const) {
     batch.box(CHAIR, 0.045, legH, 0.045, x, 0, z)
   }
-  batch.box(CHAIR, 0.42, 0.28, 0.05, 0, CHAIR_H, -0.19)
-  batch.box(CHAIR_LIGHT, 0.44, 0.045, 0.07, 0, CHAIR_H + 0.28, -0.19)
+  // The back stops just under the head of the smallest guest seated, so no head goes through it.
+  batch.box(CHAIR, 0.42, 0.22, 0.05, 0, CHAIR_H, -0.19)
+  batch.box(CHAIR_LIGHT, 0.44, 0.045, 0.07, 0, CHAIR_H + 0.22, -0.19)
   return batch.geometry()
 }
 

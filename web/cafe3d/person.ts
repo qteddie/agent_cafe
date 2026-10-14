@@ -327,6 +327,8 @@ export class Body {
     this.ring.rotation.x = -Math.PI / 2
     this.ring.position.y = 0.015
     this.ring.visible = false
+    // Only a mark: the floor under it is still the floor to a click.
+    this.ring.raycast = () => {}
     this.root.add(this.ring)
 
     this.bubbleMaterial = new THREE.SpriteMaterial({ transparent: true, depthWrite: false })
@@ -397,7 +399,8 @@ export class Body {
     this.upper.rotation.set(joints.lean, joints.turn, 0)
     this.body.position.y = this.seatLift + joints.lift
     // Seated, the hips sit back on the seat, as far back as what it wears allows.
-    this.body.position.z = this.isSeated ? this.seat : 0
+    // Slumped forward over the table, its back is clear of the chair whatever it wears: it sits where everyone used to.
+    this.body.position.z = this.isSeated ? (this.pose === 'slump' ? -0.04 : this.seat) : 0
     // A cup, a magnifier or a note stays upright whatever the arm does.
     this.cup.rotation.x = -joints.armRx - joints.lean
     this.lens.rotation.x = -joints.armRx - 0.4

@@ -258,6 +258,14 @@ export function chairRect(chair: Point): Rect {
   return { x0: chair.x - CHAIR_HALF, z0: chair.z - CHAIR_HALF, x1: chair.x + CHAIR_HALF, z1: chair.z + CHAIR_HALF }
 }
 
+/** The walls, as lines along the floor's edge, the right one either side of the doorway: a pet keeps PET_ROOM from them, so that no dog lies down with its head in one. */
+export const PET_WALLS: readonly Rect[] = [
+  { x0: -HALF_W, z0: -HALF_D, x1: -HALF_W, z1: HALF_D },
+  { x0: -HALF_W, z0: -HALF_D, x1: HALF_W, z1: -HALF_D },
+  { x0: HALF_W, z0: -HALF_D, x1: HALF_W, z1: DOOR.z - DOOR.width / 2 - PET_ROOM },
+  { x0: HALF_W, z0: DOOR.z + DOOR.width / 2 + PET_ROOM, x1: HALF_W, z1: HALF_D },
+]
+
 /** The walkable floor: the room less a margin along its walls. */
 export const FLOOR: Rect = { x0: -HALF_W + 0.25, z0: -HALF_D + 0.25, x1: HALF_W - 0.25, z1: HALF_D - 0.3 }
 

@@ -223,6 +223,8 @@ export class Pet {
     // At one height in the room whatever the pet's size: clear of the rugs and the door mat.
     this.ring.position.y = 0.024 / this.size
     this.ring.visible = false
+    // Only a mark: the floor under it is still the floor to a click.
+    this.ring.raycast = () => {}
     this.root.add(this.ring)
     this.moodUntil = now + 5_000 + this.random() * 20_000
   }
@@ -477,14 +479,12 @@ export class Pet {
       return
     }
     if (this.path.length > 0) {
-      // A ball lies where it fell; anywhere else it goes to the free floor nearest where it meant to.
-      if (this.errand !== 'fetch') this.goal = nav.nearestPoint(this.goal)
+      // To the free floor nearest where it meant to go (a ball under new furniture has rolled out there too).
+      this.goal = nav.nearestPoint(this.goal)
       // One still coming in walks to the step inside the door first, as it did.
       this.path = this.x > HALF_W ? [DOOR.inside, ...nav.path(DOOR.inside, this.goal)] : nav.path(this, this.goal)
       return
     }
-    // A dog at its ball, waiting for it to land, stays: in a moment it picks it up and runs back.
-    if (this.errand === 'fetch') return
     if (nav.isFree(this)) return
     const spot = nav.nearestPoint(this)
     this.petter = ''

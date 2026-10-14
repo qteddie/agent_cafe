@@ -13,6 +13,7 @@ import {
   HALF_D,
   HALF_W,
   PET_ROOM,
+  PET_WALLS,
   SLOTS,
   SLOT_ORDER,
   SPOTS,
@@ -206,10 +207,11 @@ describe('finding the way', () => {
 })
 
 describe("the pets' floor", () => {
-  /** The floor the cats and dogs walk with every slot's table `columns` long: the chairs and the bar's stools kept clear, as the café lays it. */
+  /** The floor the cats and dogs walk with every slot's table `columns` long: the chairs, the bar's stools and the walls kept clear, as the café lays it. */
   function petFloor(columns: number): NavGrid {
     const nav = furnished()
     for (const spot of SPOTS) if (spot.kind === 'bar') nav.block(chairRect(spot), PET_ROOM)
+    for (const wall of PET_WALLS) nav.block(wall, PET_ROOM)
     for (let slot = 0; slot < SLOTS; slot += 1) {
       nav.block(tableRect(slot, columns))
       for (const chair of chairsOf(slot, columns)) nav.block(chairRect(chair), PET_ROOM)
@@ -239,6 +241,17 @@ describe("the pets' floor", () => {
         }
       }
     }
+  })
+
+  test("keeps a pet a dog's length from the walls, and the doorway open", () => {
+    const nav = petFloor(1)
+    for (let z = -HALF_D + 0.1; z < HALF_D; z += 0.2) {
+      expect(nav.isFree({ x: -HALF_W + 0.5, z })).toBe(false)
+      const isDoorway = Math.abs(z - DOOR.z) < DOOR.width / 2
+      if (!isDoorway) expect(nav.isFree({ x: HALF_W - 0.5, z })).toBe(false)
+    }
+    for (let x = -HALF_W + 0.1; x < HALF_W; x += 0.2) expect(nav.isFree({ x, z: -HALF_D + 0.5 })).toBe(false)
+    expect(nav.isFree(DOOR.inside)).toBe(true)
   })
 
   test('still leads a pet from the door to every cat bed in a full café', () => {

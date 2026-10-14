@@ -100,13 +100,13 @@ const NEAR = 0.46
 /**
  * Who comes in keeps to its right of the door, who goes out to its right:
  * they pass in the doorway instead of meeting head on. Outside, where nobody
- * is nudged, a leaver goes back to the middle of the step, clear of the plant.
+ * is nudged, a leaver keeps to its lane and is gone short of the plant.
  */
 const LANE = 0.2
 const IN_STEP: Point = { x: DOOR.inside.x, z: DOOR.z - LANE }
 const IN_FROM: Point = { x: DOOR.outside.x, z: DOOR.z - LANE }
 const OUT_STEP: Point = { x: DOOR.inside.x, z: DOOR.z + LANE }
-const OUT_TO: Point = { x: DOOR.outside.x, z: DOOR.z }
+const OUT_TO: Point = { x: DOOR.outside.x - 0.6, z: DOOR.z + LANE }
 /** Nearer than this to the step inside the door, one coming in is past it: a group that came in together need not all stand on that one point. */
 const PASS = 0.3
 /** How far into the doorway a nudge may move a guest: its shoulders stay clear of the door posts. */
@@ -168,9 +168,14 @@ export class Guest {
     return this.path.length > 0
   }
 
-  /** Standing still where it got to, not seated and not on its way out: it gives way to those who walk into it. */
+  /** Standing still where it got to, not seated and not on its way out: two such in each other move apart. */
   get isStanding(): boolean {
     return this.isThere && this.path.length === 0 && this.goal.sit === 0 && this.where !== 'door'
+  }
+
+  /** On its way out of the door: done, or gone from the view. */
+  get isGoing(): boolean {
+    return this.where === 'door'
   }
 
   /** On its way to a pet, or petting it. */
@@ -286,6 +291,8 @@ export class Guest {
     const goal = this.path[this.path.length - 1] as Point
     if (this.where === 'door') this.path = this.wayOut(world)
     else if (this.x <= HALF_W) this.path = world.nav.path(this, goal)
+    // One still coming in walks to the step inside the door first, as it did.
+    else this.path = [IN_STEP, ...world.nav.path(IN_STEP, goal)]
   }
 
   // -------------------------------------------------------------------------
@@ -525,11 +532,16 @@ export class Guest {
     this.path = this.x > HALF_W - 0.05 ? [IN_STEP, ...world.nav.path(IN_STEP, place)] : world.nav.path(this, place)
   }
 
-  /** The way out: to the step inside the door, then through it; straight through from the doorway or past it, never back in. */
+  /** The way out: to the step inside the door, then through it. From the doorway it goes straight out (kept off the posts), never back in. */
   private wayOut(world: World): Point[] {
-    const isInDoorway = this.x >= DOOR.inside.x - 0.05 && Math.abs(this.z - DOOR.z) < DOOR.width / 2 - 0.3
-    return this.x > HALF_W || isInDoorway ? [OUT_TO] : [...world.nav.path(this, OUT_STEP), OUT_TO]
+    if (this.x > HALF_W) return [OUT_TO]
+    if (this.x >= DOOR.inside.x - 0.05 && Math.abs(this.z - DOOR.z) < DOOR.width / 2) {
+      const z = Math.min(DOORWAY_HIGH, Math.max(DOORWAY_LOW, this.z))
+      return Math.abs(z - this.z) < 0.01 ? [OUT_TO] : [{ x: this.x + 0.05, z }, OUT_TO]
+    }
+    return [...world.nav.path(this, OUT_STEP), OUT_TO]
   }
+
 
   private reach(world: World): void {
     this.isThere = true

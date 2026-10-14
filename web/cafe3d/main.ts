@@ -28,6 +28,7 @@ import {
   TABLE_SEATS,
   WALL_H,
   PET_ROOM,
+  PET_WALLS,
   chairOf,
   chairRect,
   chairsOf,
@@ -81,6 +82,8 @@ const HEART_MS = 1_300
 const MARK_MS = 900
 /** Two guests about to walk into each other each step aside a little to their right, so that two who meet in mirror image turn about each other. */
 const KEEP_RIGHT = (15 * Math.PI) / 180
+/** Nothing drawn of a guest reaches further than this from where it stands (an arm down to a pet, a frame behind). */
+const REACH = 1
 
 type Table = {
   id: string
@@ -533,8 +536,9 @@ class Cafe3D implements World, PetWorld, Stage {
       nav.clear()
       for (const rect of FIXED_OBSTACLES) nav.block(rect)
     }
-    // The stools along the window bar are chairs too, to a dog.
+    // The stools along the window bar are chairs too, to a dog; and a dog lies down a head's length from a wall.
     for (const spot of SPOTS) if (spot.kind === 'bar') this.petNav.block(chairRect(spot), PET_ROOM)
+    for (const wall of PET_WALLS) this.petNav.block(wall, PET_ROOM)
     for (let slot = 0; slot < SLOTS; slot += 1) {
       const furniture = this.room.slots[slot]
       if (furniture === undefined) continue
@@ -545,6 +549,13 @@ class Cafe3D implements World, PetWorld, Stage {
       for (const chair of chairsOf(slot, furniture.shown)) this.petNav.block(chairRect(chair), PET_ROOM)
     }
     for (const guest of this.guests.values()) guest.reroute(this)
+    // A ball a table or a chair just came down on rolls out from under it, and a dog after it goes there.
+    for (const ball of this.balls.values()) {
+      if (ball.state === 'carried' || this.petNav.isFree(ball)) continue
+      const spot = this.petNav.nearestPoint(ball)
+      ball.x = spot.x
+      ball.z = spot.z
+    }
     // A pet a table or a chair just came down on gets up and moves over.
     for (const pet of this.pets) pet.reroute(this)
   }
@@ -659,32 +670,39 @@ class Cafe3D implements World, PetWorld, Stage {
       }
     }
     const pointable = [...this.guests.values()].filter(guest => !guest.isLeaving && guest.body.presence >= 0.5)
-    // A guest is picked by what is drawn of it, a hat's brim and a raised arm included, so that a nearer guest's
-    // empty corners do not take the click from the one seen behind it.
+    const pets = this.pets.filter(pet => !pet.isLeaving && pet.isPresent)
+    // A guest or a pet is picked by what is drawn of it, a hat's brim and a raised arm included, so that a
+    // nearer one's empty corners do not take the click from the one seen behind it.
     const shapes: THREE.Object3D[] = []
-    for (const guest of pointable) {
+    const exactly = (root: THREE.Object3D, found: { key: string; pet: Pet | undefined }): void => {
       shapes.length = 0
-      guest.body.root.traverseVisible(object => {
+      root.traverseVisible(object => {
         if (object instanceof THREE.Mesh) shapes.push(object)
       })
       const exact = this.raycaster.intersectObjects(shapes, false)[0]
       if (exact !== undefined && exact.distance < bestDistance) {
         bestDistance = exact.distance
-        best = { key: guest.key, pet: undefined }
+        best = found
       }
     }
-    for (const pet of this.pets) {
-      if (pet.isLeaving || !pet.isPresent) continue
-      // The pet's own outline, turned as it stands: a dog's snout is as good as its back.
-      pet.hitBox(this.box)
-      consider({ key: '', pet })
+    for (const guest of pointable) {
+      // Only a guest the pointer passes near is looked at closely.
+      this.box.min.set(guest.x - REACH, -0.1, guest.z - REACH)
+      this.box.max.set(guest.x + REACH, guest.body.headTop() + 0.5, guest.z + REACH)
+      if (this.raycaster.ray.intersectsBox(this.box)) exactly(guest.body.root, { key: guest.key, pet: undefined })
     }
+    for (const pet of pets) exactly(pet.root, { key: '', pet })
     if (best !== none) return best
-    // A click that just misses everyone: the box around each guest, so a thin seated figure is still easy to click.
+    // A click that just misses everyone: the box around each, the nearest, so a thin seated figure is still easy to click.
     for (const guest of pointable) {
       this.box.min.set(guest.x - 0.3, 0, guest.z - 0.3)
       this.box.max.set(guest.x + 0.3, guest.body.headTop() + 0.1, guest.z + 0.3)
       consider({ key: guest.key, pet: undefined })
+    }
+    for (const pet of pets) {
+      // The pet's own outline, turned as it stands: a dog's snout is as good as its back.
+      pet.hitBox(this.box)
+      consider({ key: '', pet })
     }
     return best
   }
@@ -886,10 +904,13 @@ class Cafe3D implements World, PetWorld, Stage {
         // Two in the very same place (come in at the door together): apart across the room's depth.
         const nx = distance < 1e-4 ? 0 : dx / distance
         const nz = distance < 1e-4 ? 1 : dz / distance
-        const rx = nx * Math.cos(KEEP_RIGHT) + nz * Math.sin(KEEP_RIGHT)
-        const rz = nz * Math.cos(KEEP_RIGHT) - nx * Math.sin(KEEP_RIGHT)
-        // One standing gives way to one walking into it, more slowly than the walker steps aside.
-        const give = (guest: Guest): number => (guest.isWalking ? push : guest.isStanding ? Math.min(push, 0.6 * dt) : 0)
+        // Two on their way out walk the same way: turned, the push would shove the outer one past the step inside the door.
+        const turn = a.isGoing && b.isGoing ? 0 : KEEP_RIGHT
+        const rx = nx * Math.cos(turn) + nz * Math.sin(turn)
+        const rz = nz * Math.cos(turn) - nx * Math.sin(turn)
+        // A guest standing at its place keeps it: only a walker steps aside, or two standing in each other.
+        const isBothStanding = a.isStanding && b.isStanding
+        const give = (guest: Guest): number => (guest.isWalking ? push : isBothStanding ? Math.min(push, 0.6 * dt) : 0)
         add(a, -rx * give(a), -rz * give(a))
         add(b, rx * give(b), rz * give(b))
       }
